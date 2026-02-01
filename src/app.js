@@ -1,5 +1,5 @@
-// Pippi Voice - Main Controller v1.4.5 (Stack Reliability Fix)
-import { VERSION } from './config.js';
+// Pippi Voice - Main Controller v1.4.6 (Final Stability)
+import { VERSION, VERSION_TAG } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -13,7 +13,7 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
-        // --- 核心歷史引擎 (確保初始化) ---
+        // 歷史引擎初始化
         this.undoStack = [];
         this.redoStack = [];
         this.currentValue = ''; 
@@ -22,7 +22,7 @@ class AppController {
         this.bindEvents();
         this.loadSettings();
         
-        console.log(`Pippi Voice v${VERSION} Initialized`);
+        console.log(`[Core] Pippi Voice v${VERSION} (${VERSION_TAG}) Initialized.`);
     }
 
     setupDOM() {
@@ -45,17 +45,26 @@ class AppController {
             sttModelSelect: document.getElementById('stt-model-select'),
             formatModelSelect: document.getElementById('format-model-select'),
             customDict: document.getElementById('custom-dict'),
-            checkUpdateBtn: document.getElementById('check-update-btn')
+            checkUpdateBtn: document.getElementById('check-update-btn'),
+            hardResetBtn: document.getElementById('hard-reset-btn'),
+            versionTag: document.getElementById('version-tag')
         };
+        
+        // 安全檢查：確保所有 DOM 元素都存在
+        for (const [key, element] of Object.entries(this.el)) {
+            if (!element) console.warn(`[DOM] Warning: Element "${key}" not found in current document.`);
+        }
+        
+        if (this.el.versionTag) {
+            this.el.versionTag.innerText = `v${VERSION} (${VERSION_TAG})`;
+        }
     }
 
-    // --- 歷史紀錄核心方法 (加入安全檢查) ---
     saveState(newVal) {
-        if (!this.undoStack) this.undoStack = []; // 防禦性編程
         newVal = newVal ? newVal.trim() : "";
         if (newVal === this.currentValue) return;
         
-        console.log('[History] Save State:', newVal);
+        console.log('[History] Saving checkpoint...');
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
         this.redoStack = []; 
@@ -65,7 +74,7 @@ class AppController {
     }
 
     handleUndo() {
-        if (this.undoStack && this.undoStack.length > 0) {
+        if (this.undoStack.length > 0) {
             this.redoStack.push(this.currentValue);
             this.currentValue = this.undoStack.pop();
             this.el.output.innerText = this.currentValue;
@@ -75,7 +84,7 @@ class AppController {
     }
 
     handleRedo() {
-        if (this.redoStack && this.redoStack.length > 0) {
+        if (this.redoStack.length > 0) {
             this.undoStack.push(this.currentValue);
             this.currentValue = this.redoStack.pop();
             this.el.output.innerText = this.currentValue;
@@ -85,11 +94,14 @@ class AppController {
     }
 
     updateUndoRedoUI() {
-        if (!this.el.undoBtn || !this.el.redoBtn) return;
-        this.el.undoBtn.disabled = this.undoStack.length === 0;
-        this.el.undoBtn.style.opacity = this.undoStack.length === 0 ? '0.3' : '1';
-        this.el.redoBtn.disabled = this.redoStack.length === 0;
-        this.el.redoBtn.style.opacity = this.redoStack.length === 0 ? '0.3' : '1';
+        if (this.el.undoBtn) {
+            this.el.undoBtn.disabled = this.undoStack.length === 0;
+            this.el.undoBtn.style.opacity = this.undoStack.length === 0 ? '0.3' : '1';
+        }
+        if (this.el.redoBtn) {
+            this.el.redoBtn.disabled = this.redoStack.length === 0;
+            this.el.redoBtn.style.opacity = this.redoStack.length === 0 ? '0.3' : '1';
+        }
     }
 
     bindEvents() {
@@ -108,23 +120,45 @@ class AppController {
         this.el.saveSettings.onclick = () => this.saveSettings();
         
         if (this.el.togglePassword) {
-            this.el.togglePassword.onclick = () => {
-                const currentType = this.el.apiKey.getAttribute('type');
-                const newType = currentType === 'password' ? 'text' : 'password';
-                this.el.apiKey.setAttribute('type', newType);
-                this.el.togglePassword.innerText = newType === 'password' ? '👁️' : '🙈';
+            this.el.togglePassword.onclick = (e) => {
+                e.preventDefault();
+                const type = this.el.apiKey.getAttribute('type') === 'password' ? 'text' : 'password';
+                this.el.apiKey.setAttribute('type', type);
+                this.el.togglePassword.innerText = type === 'password' ? '👁️' : '🙈';
             };
         }
 
-        if (this.el.checkUpdateBtn) this.el.checkUpdateBtn.onclick = () => window.location.reload();
+        if (this.el.checkUpdateBtn) {
+            this.el.checkUpdateBtn.onclick = () => {
+                this.el.statusText.innerText = '正在檢查更新...';
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if (reg) reg.update().then(() => window.location.reload());
+                        else window.location.reload();
+                    });
+                } else window.location.reload();
+            };
+        }
+
+        if (this.el.hardResetBtn) {
+            this.el.hardResetBtn.onclick = () => {
+                if (confirm('這將清除所有緩存並重置 App，確定嗎？')) {
+                    if ('serviceWorker' in navigator) {
+                        navigator.serviceWorker.getRegistrations().then(regs => {
+                            for(let reg of regs) reg.unregister();
+                            window.location.reload(true);
+                        });
+                    } else window.location.reload(true);
+                }
+            };
+        }
 
         this.el.output.onblur = () => {
             this.saveState(this.el.output.innerText);
         };
 
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
-            const sttText = (final + interim).trim();
-            this.el.output.innerText = sttText;
+            this.el.output.innerText = (this.currentValue + " " + final + interim).trim();
             this.el.output.scrollTop = this.el.output.scrollHeight;
         });
 

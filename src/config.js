@@ -1,5 +1,6 @@
-// Pippi Voice - Version Configuration v1.4.5
-export const VERSION = '1.4.5';
+// Pippi Voice - Version Configuration v1.4.6
+export const VERSION = '1.4.6';
+export const VERSION_TAG = 'Final Stability Patch';
 export const CACHE_NAME = `pippi-voice-v${VERSION}`;
 
 export const ASSETS = [

@@ -6,40 +6,15 @@
     <title>Pippi Voice</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="src/style.css">
-    <script type="module">
-        import { VERSION } from './src/config.js';
-        
-        window.addEventListener('DOMContentLoaded', () => {
-            const tag = document.getElementById('version-tag');
-            if (tag) tag.innerText = `v${VERSION} (UI Layout Fix)`;
-            const btn = document.getElementById('check-update-btn');
-            if (btn) btn.innerText = `檢查更新 (目前 v${VERSION})`;
-        });
-
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(`./sw.js?v=${VERSION}`, { type: 'module' }).then(reg => {
-                reg.onupdatefound = () => {
-                    const installingWorker = reg.installing;
-                    installingWorker.onstatechange = () => {
-                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm(`發現更新 v${VERSION}！是否立即重新載入以修正 UI 佈局？`)) {
-                                window.location.reload();
-                            }
-                        }
-                    };
-                };
-            });
-        }
-    </script>
 </head>
 <body>
     <div id="app">
         <header>
             <div class="logo">
-                <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon" style="width:24px; height:24px; border-radius:50%">
+                <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon">
                 <div>
-                    <h1 style="font-size:1rem; margin:0">Pippi Voice</h1>
-                    <small id="version-tag" style="font-size:0.6rem; color:#999">載入中...</small>
+                    <h1>Pippi Voice</h1>
+                    <small id="version-tag">Initializing...</small>
                 </div>
             </div>
             <button id="settings-btn" style="background:none; border:none; font-size:1.2rem">⚙️</button>
@@ -67,7 +42,7 @@
 
         <!-- Settings Modal -->
         <div id="settings-modal" class="modal hidden">
-            <div class="modal-content" style="overflow-y:auto; max-height:90vh">
+            <div class="modal-content">
                 <h2 style="margin-top:0">App 設定</h2>
                 <div class="input-group">
                     <label>Gemini API Key:</label>
@@ -111,9 +86,10 @@
                 </div>
                 
                 <div class="version-info">
-                    <button id="check-update-btn" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#f0f0f0">檢查更新</button>
+                    <button id="check-update-btn" class="secondary-btn">檢查並下載更新</button>
+                    <button id="hard-reset-btn" class="danger-btn">強制重置並清除所有快取</button>
                 </div>
-                <button id="save-settings" style="width:100%; padding:12px; background:#2196F3; color:white; border:none; border-radius:8px; font-weight:bold">儲存並關閉</button>
+                <button id="save-settings" class="primary-btn" style="margin-top:10px">儲存並關閉</button>
             </div>
         </div>
     </div>

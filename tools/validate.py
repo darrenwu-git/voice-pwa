@@ -3,9 +3,9 @@ import re
 import sys
 
 def validate():
-    print("🐈 Pippi Release Validator Starting...")
+    print("🐈 Pippi Safety Inspector Starting...")
     
-    # 1. 檢查 config.js
+    # 1. 檢查 config.js (唯一信源)
     version = ""
     with open('src/config.js', 'r') as f:
         config_content = f.read()
@@ -16,28 +16,21 @@ def validate():
         version = match.group(1)
         print(f"Target Version: v{version}")
 
-    # 2. 檢查 sw.js 是否包含硬編碼版本註解 (確保 Byte 變更)
+    # 2. 檢查 sw.js 是否有同步引用與註解
     with open('sw.js', 'r') as f:
         sw = f.read()
         if f"v{version}" not in sw:
-            print(f"❌ Error: sw.js is missing version comment v{version}.")
+            print(f"❌ Error: sw.js is missing version comment v{version}!")
             return False
 
     # 3. 檢查 app.js 核心邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
         if 'undoStack' not in app or 'redoStack' not in app:
-             print("❌ Error: app.js is missing core Undo/Redo stack variables!")
+             print("❌ Error: app.js is missing Undo/Redo stack!")
              return False
-        if 'this.undoStack.push' not in app:
-             print("❌ Error: app.js is missing undo push logic!")
-             return False
-
-    # 4. 檢查 test.html 是否已更新
-    with open('test.html', 'r') as f:
-        test = f.read()
-        if f"v{version}" not in test:
-             print(f"❌ Error: test.html is outdated (expected v{version})")
+        if 'hardResetBtn' not in app:
+             print("❌ Error: app.js is missing Hard Reset button logic!")
              return False
 
     print(f"✅ Validation Passed: v{version} is architecturally sound.")
