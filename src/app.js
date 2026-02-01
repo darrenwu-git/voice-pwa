@@ -2,7 +2,7 @@
 let isRecording = false;
 let apiKey = localStorage.getItem('pippi_gemini_api_key') || '';
 let customDict = localStorage.getItem('pippi_custom_dict') || '';
-let selectedModel = localStorage.getItem('pippi_selected_model') || 'gemini-1.5-flash';
+let selectedModel = localStorage.getItem('pippi_selected_model') || 'gemini-2.5-flash';
 let recognition = null;
 let finalTranscript = '';
 

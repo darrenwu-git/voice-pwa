@@ -6,11 +6,11 @@
     <title>Pippi Voice - 智慧語音輸入</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2196F3">
-    <link rel="stylesheet" href="src/style.css?v=1.0.1">
+    <link rel="stylesheet" href="src/style.css?v=1.0.2">
     <link rel="apple-touch-icon" href="public/icons/icon-192x192.png">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js');
+            navigator.serviceWorker.register('./sw.js?v=1.0.2');
         }
     </script>
 </head>
@@ -21,7 +21,7 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon">
                 <div>
                     <h1>Pippi Voice</h1>
-                    <small id="version-tag">v1.0.1</small>
+                    <small id="version-tag">v1.0.2</small>
                 </div>
             </div>
             <button id="settings-btn" class="icon-btn">⚙️</button>
@@ -61,10 +61,10 @@
                 <div class="input-group">
                     <label for="model-select">模型選擇:</label>
                     <select id="model-select">
-                        <option value="gemini-1.5-flash">Gemini 1.5 Flash (標準)</option>
-                        <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash (最新)</option>
-                        <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (推薦)</option>
+                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                     </select>
                 </div>
                 <div class="input-group">
@@ -78,6 +78,6 @@ Darren Wu" rows="4"></textarea>
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.0.1" type="module"></script>
+    <script src="src/app.js?v=1.0.2" type="module"></script>
 </body>
 </html>
