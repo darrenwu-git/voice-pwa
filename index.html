@@ -6,11 +6,34 @@
     <title>Pippi Voice - 智慧語音輸入</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2196F3">
-    <link rel="stylesheet" href="src/style.css?v=1.0.2">
+    <link rel="stylesheet" href="src/style.css?v=1.0.3">
     <link rel="apple-touch-icon" href="public/icons/icon-192x192.png">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js?v=1.0.2');
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js?v=1.0.3').then(reg => {
+                    reg.onupdatefound = () => {
+                        const installingWorker = reg.installing;
+                        installingWorker.onstatechange = () => {
+                            if (installingWorker.state === 'installed') {
+                                if (navigator.serviceWorker.controller) {
+                                    if (confirm('發現新版本 v1.0.3！是否立即更新以修正 API 連線問題？')) {
+                                        window.location.reload();
+                                    }
+                                }
+                            }
+                        };
+                    };
+                });
+            });
+
+            let refreshing = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (!refreshing) {
+                    window.location.reload();
+                    refreshing = true;
+                }
+            });
         }
     </script>
 </head>
@@ -21,7 +44,7 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon">
                 <div>
                     <h1>Pippi Voice</h1>
-                    <small id="version-tag">v1.0.2</small>
+                    <small id="version-tag">v1.0.3</small>
                 </div>
             </div>
             <button id="settings-btn" class="icon-btn">⚙️</button>
@@ -78,6 +101,6 @@ Darren Wu" rows="4"></textarea>
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.0.2" type="module"></script>
+    <script src="src/app.js?v=1.0.3" type="module"></script>
 </body>
 </html>
