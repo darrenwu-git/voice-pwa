@@ -1,4 +1,4 @@
-// Pippi Voice App Logic - v1.1.4
+// Pippi Voice App Logic - v1.1.5 (Consulted with Thinking Model)
 let isRecording = false;
 let apiKey = localStorage.getItem('pippi_gemini_api_key') || '';
 let customDict = localStorage.getItem('pippi_custom_dict') || '';
@@ -10,7 +10,11 @@ let socket = null;
 let audioContext = null;
 let processor = null;
 let stream = null;
+
+// Deduplication State
 let finalTranscript = '';
+let processedFinalIndex = 0;
+let lastFinalHash = '';
 
 // DOM Elements
 const micBtn = document.getElementById('mic-btn');
@@ -66,6 +70,16 @@ togglePasswordBtn.onclick = () => {
 
 if (!apiKey) settingsModal.classList.remove('hidden');
 
+// --- Simple Hash for Content Matching ---
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+    }
+    return hash.toString();
+}
+
 // --- Web Speech API Setup ---
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -78,21 +92,32 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         if (selectedSTT !== 'web-speech') return;
         
         let interimTranscript = '';
-        let currentFinal = '';
+        let newFinalSegments = [];
         
-        // 重寫去重邏輯：直接重新計算整段 Final 文字
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) {
-                currentFinal += transcript;
+        for (let i = 0; i < event.results.length; i++) {
+            const result = event.results[i];
+            const transcript = result[0].transcript;
+            
+            if (result.isFinal) {
+                // 關鍵：只處理索引 >= processedFinalIndex 的新 final 結果
+                if (i >= processedFinalIndex) {
+                    newFinalSegments.push(transcript);
+                }
             } else {
-                interimTranscript += transcript;
+                interimTranscript = transcript;
             }
         }
-
-        if (currentFinal) {
-            // 只把「真正新的」Final 內容加進去
-            finalTranscript += currentFinal;
+        
+        if (newFinalSegments.length > 0) {
+            const newText = newFinalSegments.join('');
+            const newHash = simpleHash(newText);
+            
+            // 二次防護：指紋比對
+            if (newHash !== lastFinalHash) {
+                finalTranscript += newText;
+                lastFinalHash = newHash;
+            }
+            processedFinalIndex = event.results.length;
         }
 
         if (realtimeBuffer) realtimeBuffer.innerText = interimTranscript;
@@ -162,6 +187,8 @@ formatBtn.onclick = async () => {
 
 async function startRecording() {
     finalTranscript = '';
+    processedFinalIndex = 0;
+    lastFinalHash = '';
     finalOutput.innerText = '';
     if (realtimeBuffer) realtimeBuffer.innerText = '';
     
@@ -190,21 +217,28 @@ async function stopRecording() {
     }
 }
 
-// --- Gemini Live WebSocket Logic ---
+// --- Gemini Live WebSocket Logic (Enhanced with Robustness) ---
 async function startGeminiLive() {
     try {
         statusText.innerText = '正在連線 Gemini Live...';
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         
-        const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenericService.BidiGenerateContent?key=${apiKey}`;
-        socket = new WebSocket(url);
+        // 正確的 WebSocket URL 格式
+        const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenericService.BidiGenerateContent?key=${apiKey}`;
+        socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
-            statusText.innerText = '連線成功，初始化中...';
+            statusText.innerText = '連線成功，發送初始化...';
             const setup = {
                 setup: { 
-                    model: "models/gemini-2.0-flash-exp", // 修正回實驗版名稱
-                    generation_config: { response_modalities: ["TEXT"] }
+                    model: "models/gemini-2.0-flash-exp",
+                    generation_config: { 
+                        response_modalities: ["TEXT"],
+                        temperature: 0.7
+                    },
+                    system_instruction: {
+                        parts: [{ text: "你是 Pippi Voice 的助理，請將語音轉為繁體中文文字。" }]
+                    }
                 }
             };
             socket.send(JSON.stringify(setup));
@@ -226,14 +260,21 @@ async function startGeminiLive() {
         };
 
         socket.onerror = (e) => {
-            alert('Gemini Live 連線錯誤。這組 Key 可能不支援 WebSocket 介面。');
+            console.error('WebSocket Error:', e);
+            statusText.innerText = '連線出錯，請檢查 Key 權限';
+            alert('Gemini Live 連線失敗。您的 API Key 可能不支援即時 WebSocket 權限。建議改用「瀏覽器原生」引擎。');
             stopRecording();
         };
 
-        socket.onclose = () => stopRecording();
+        socket.onclose = (e) => {
+            if (isRecording) {
+                console.log('WebSocket Closed:', e);
+                stopRecording();
+            }
+        };
 
     } catch (err) {
-        alert('錄音失敗：' + err.message);
+        alert('無法啟動 Gemini Live：' + err.message);
         stopRecording();
     }
 }
