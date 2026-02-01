@@ -9,10 +9,9 @@
     <script type="module">
         import { VERSION } from './src/config.js';
         
-        // 更新 UI 上的版本標籤
         window.addEventListener('DOMContentLoaded', () => {
             const tag = document.getElementById('version-tag');
-            if (tag) tag.innerText = `v${VERSION} (Final Fix)`;
+            if (tag) tag.innerText = `v${VERSION} (Cancel Func)`;
             const btn = document.getElementById('check-update-btn');
             if (btn) btn.innerText = `檢查更新 (目前 v${VERSION})`;
         });
@@ -23,7 +22,7 @@
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm(`發現新版本 v${VERSION}！是否立即更新？`)) {
+                            if (confirm(`發現新版本 v${VERSION}！是否立即更新以加入「取消功能」？`)) {
                                 window.location.reload();
                             }
                         }
@@ -60,6 +59,7 @@
             <div class="action-buttons-row">
                 <button id="format-btn" class="action-btn">✨ 自動整理</button>
                 <button id="copy-btn" class="action-btn">📋 複製內容</button>
+                <button id="cancel-btn" class="action-btn cancel-btn">✖ 取消/清空</button>
             </div>
         </footer>
 

@@ -26,8 +26,8 @@ def validate():
     # 3. 檢查 app.js 核心邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
-        if 'AppState.RECORDING' not in app or 'this.el.output.innerText = \'\';' not in app:
-             print("❌ Error: app.js is missing v1.3.4 'clear text' logic!")
+        if 'cancelBtn' not in app or 'this.ai.abort()' not in app:
+             print("❌ Error: app.js is missing v1.3.6 'cancel' logic!")
              return False
 
     print(f"✅ Validation Passed: v{version} is architecturally sound and will trigger update.")
