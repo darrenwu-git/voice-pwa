@@ -16,6 +16,17 @@ const formatBtn = document.getElementById('format-btn');
 const realtimeBuffer = document.getElementById('realtime-buffer');
 const finalOutput = document.getElementById('final-output');
 
+const togglePasswordBtn = document.createElement('button');
+togglePasswordBtn.innerText = '👁️';
+togglePasswordBtn.className = 'toggle-btn';
+apiKeyInput.parentNode.appendChild(togglePasswordBtn);
+
+togglePasswordBtn.onclick = () => {
+    const type = apiKeyInput.getAttribute('type') === 'password' ? 'text' : 'password';
+    apiKeyInput.setAttribute('type', type);
+    togglePasswordBtn.innerText = type === 'password' ? '👁️' : '🙈';
+};
+
 // Initialize
 if (apiKey) {
     apiKeyInput.value = apiKey;

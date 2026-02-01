@@ -180,12 +180,27 @@ main {
     font-size: 0.9rem;
 }
 
-.input-group input, .input-group select {
+.input-group input, .input-group select, .input-group textarea {
     width: 100%;
     padding: 0.8rem;
     border: 1px solid #ddd;
     border-radius: 8px;
     box-sizing: border-box;
+}
+
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
 }
 
 .primary-btn {
