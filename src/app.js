@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.4.1 (Two-Stage History Logic)
+// Pippi Voice - Main Controller v1.4.2 (UI Polished)
 import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -13,7 +13,7 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
-        this.undoStack = [];
+        this.historyStack = [];
         this.redoStack = [];
         this.currentValue = ''; 
 
@@ -39,6 +39,7 @@ class AppController {
             settingsModal: document.getElementById('settings-modal'),
             saveSettings: document.getElementById('save-settings'),
             apiKey: document.getElementById('api-key'),
+            togglePassword: document.getElementById('toggle-password'), // 新增
             sttSelect: document.getElementById('stt-select'),
             sttModelSelect: document.getElementById('stt-model-select'),
             formatModelSelect: document.getElementById('format-model-select'),
@@ -51,10 +52,9 @@ class AppController {
         newVal = newVal.trim();
         if (newVal === this.currentValue) return;
         
-        console.log('[History] Pushing to Undo stack, Old:', this.currentValue, 'New:', newVal);
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
-        this.redoStack = []; // Clear redo on new action
+        this.redoStack = [];
         
         if (this.undoStack.length > 50) this.undoStack.shift();
         this.updateUndoRedoUI();
@@ -62,7 +62,6 @@ class AppController {
 
     handleUndo() {
         if (this.undoStack.length > 0) {
-            console.log('[History] Undo triggered');
             this.redoStack.push(this.currentValue);
             this.currentValue = this.undoStack.pop();
             this.el.output.innerText = this.currentValue;
@@ -73,7 +72,6 @@ class AppController {
 
     handleRedo() {
         if (this.redoStack.length > 0) {
-            console.log('[History] Redo triggered');
             this.undoStack.push(this.currentValue);
             this.currentValue = this.redoStack.pop();
             this.el.output.innerText = this.currentValue;
@@ -103,6 +101,16 @@ class AppController {
         
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
+        
+        // 密碼眼睛切換邏輯
+        if (this.el.togglePassword) {
+            this.el.togglePassword.onclick = () => {
+                const type = this.el.apiKey.getAttribute('type') === 'password' ? 'text' : 'password';
+                this.el.apiKey.setAttribute('type', type);
+                this.el.togglePassword.innerText = type === 'password' ? '👁️' : '🙈';
+            };
+        }
+
         if (this.el.checkUpdateBtn) this.el.checkUpdateBtn.onclick = () => window.location.reload();
 
         this.el.output.onblur = () => {
@@ -110,7 +118,6 @@ class AppController {
         };
 
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
-            // 在錄音過程中不 saveState，只動態顯示
             const sttText = (final + interim).trim();
             this.el.output.innerText = sttText;
             this.el.output.scrollTop = this.el.output.scrollHeight;
@@ -122,8 +129,7 @@ class AppController {
 
         this.bus.on(Events.AI_SUCCESS, (res) => {
             if (res) {
-                console.log('[Stage 2] AI Formatting completed');
-                this.saveState(res); // 存入最終 AI 整理後的內容
+                this.saveState(res);
                 this.el.output.innerText = res;
                 this.fsm.transition(AppState.SUCCESS);
             }
@@ -147,12 +153,12 @@ class AppController {
                 break;
 
             case AppState.RECORDING:
-                this.saveState(this.el.output.innerText); // 錄音前存檔
+                this.saveState(this.el.output.innerText); 
                 this.el.micBtn.innerText = '🛑 停止錄音';
                 this.el.micBtn.classList.add('recording');
                 this.el.statusDot.style.background = '#4CAF50';
                 this.el.output.innerText = '';
-                this.currentValue = ''; // 重置當前基準為空
+                this.currentValue = '';
                 this.speech.start(this.el.sttSelect.value, { apiKey: this.el.apiKey.value.trim() });
                 break;
 
@@ -165,9 +171,8 @@ class AppController {
                         model: this.el.sttModelSelect.value
                     });
                     if (transcript) {
-                        console.log('[Stage 1] STT completed, saving raw transcript...');
                         this.el.output.innerText = transcript;
-                        this.saveState(transcript); // 重要：辨識完後存檔一次
+                        this.saveState(transcript);
                         this.fsm.transition(AppState.FORMATTING);
                     } else {
                         this.fsm.transition(AppState.IDLE);
@@ -180,7 +185,6 @@ class AppController {
             case AppState.FORMATTING:
                 this.el.statusText.innerText = '正在智慧整理中...';
                 this.el.micBtn.disabled = true;
-                // 對於非 gemini-file 模式，我們需要在整理前存下目前的 STT 文字
                 if (this.el.sttSelect.value !== 'gemini-file') {
                     this.saveState(this.el.output.innerText);
                 }

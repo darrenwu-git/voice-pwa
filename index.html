@@ -11,7 +11,7 @@
         
         window.addEventListener('DOMContentLoaded', () => {
             const tag = document.getElementById('version-tag');
-            if (tag) tag.innerText = `v${VERSION} (Undo/Redo)`;
+            if (tag) tag.innerText = `v${VERSION} (UI Polished)`;
             const btn = document.getElementById('check-update-btn');
             if (btn) btn.innerText = `檢查更新 (目前 v${VERSION})`;
         });
@@ -22,7 +22,7 @@
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm(`發現新版本 v${VERSION}！是否立即更新以加入「下一步/Redo」功能？`)) {
+                            if (confirm(`發現更新 v${VERSION}！是否立即重新載入以顯示密碼眼睛按鈕？`)) {
                                 window.location.reload();
                             }
                         }
@@ -71,7 +71,10 @@
                 <h2 style="margin-top:0">App 設定</h2>
                 <div class="input-group">
                     <label>Gemini API Key:</label>
-                    <input type="password" id="api-key" placeholder="AIza...">
+                    <div class="password-wrapper">
+                        <input type="password" id="api-key" placeholder="AIza...">
+                        <button id="toggle-password" class="toggle-btn">👁️</button>
+                    </div>
                 </div>
                 
                 <div class="input-group">

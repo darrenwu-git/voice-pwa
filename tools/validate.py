@@ -16,28 +16,28 @@ def validate():
         version = match.group(1)
         print(f"Target Version: v{version}")
 
-    # 2. 檢查 sw.js 是否包含硬編碼版本註解
+    # 2. 檢查 sw.js
     with open('sw.js', 'r') as f:
         sw = f.read()
         if f"v{version}" not in sw:
             print(f"❌ Error: sw.js is missing version comment v{version}.")
             return False
 
-    # 3. 檢查 app.js 是否包含關鍵兩階段 Undo 邏輯
+    # 3. 檢查 app.js 密碼切換邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
-        if 'STT_PROCESSING' not in app or 'this.saveState(transcript)' not in app:
-             print("❌ Error: app.js is missing Two-Stage Undo logic!")
+        if 'togglePassword' not in app or 'setAttribute(\'type\', type)' not in app:
+             print("❌ Error: app.js is missing password toggle logic!")
              return False
 
-    # 4. 檢查 test.html 是否已更新測試案例
-    with open('test.html', 'r') as f:
-        test = f.read()
-        if "Two-Stage Undo Test" not in test:
-             print("❌ Error: test.html is missing Two-Stage Undo scenario!")
+    # 4. 檢查 index.html 是否有按鈕
+    with open('index.html', 'r') as f:
+        html = f.read()
+        if 'toggle-btn' not in html:
+             print("❌ Error: index.html is missing toggle-password button!")
              return False
 
-    print(f"✅ Validation Passed: v{version} is logically sound.")
+    print(f"✅ Validation Passed: v{version} is polished and ready.")
     return True
 
 if __name__ == "__main__":

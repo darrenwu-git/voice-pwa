@@ -80,17 +80,17 @@ header {
 
 .action-buttons-row {
     display: grid;
-    grid-template-columns: repeat(5, 1fr); /* 五列佈局 */
+    grid-template-columns: repeat(5, 1fr);
     gap: 4px;
 }
 
 .action-btn {
     padding: 10px 1px;
     border: 1px solid #ddd;
-    border-radius: 6px;
+    border-radius: 8px;
     background: white;
     font-weight: bold;
-    font-size: 0.6rem; /* 再次縮小字體以應對五顆按鈕 */
+    font-size: 0.6rem;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -108,3 +108,21 @@ header {
 .input-group { margin-bottom: 12px; }
 .input-group label { display: block; font-size: 0.8rem; margin-bottom: 4px; }
 .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
+
+/* Password Wrapper & Eye Toggle */
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.toggle-btn {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 4px;
+    line-height: 1;
+}
