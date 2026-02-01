@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pippi Voice v1.2.0</title>
-    <link rel="manifest" href="manifest.json?v=1.2.0">
-    <link rel="stylesheet" href="src/style.css?v=1.2.0">
+    <title>Pippi Voice v1.2.1</title>
+    <link rel="manifest" href="manifest.json?v=1.2.1">
+    <link rel="stylesheet" href="src/style.css?v=1.2.1">
     <script>
-        // 強力更新腳本 v1.2.0
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js?v=1.2.0', { updateViaCache: 'none' }).then(reg => {
+            navigator.serviceWorker.register('./sw.js?v=1.2.1', { updateViaCache: 'none' }).then(reg => {
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm('發現重大更新 v1.2.0！是否立即重載頁面？')) {
+                            if (confirm('發現重要修正 v1.2.1！是否立即更新以修復自動整理功能？')) {
                                 window.location.reload();
                             }
                         }
@@ -31,7 +30,7 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon" style="width:24px; height:24px; border-radius:50%">
                 <div>
                     <h1 style="font-size:1rem; margin:0">Pippi Voice</h1>
-                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.2.0 (Clean Update)</small>
+                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.2.1 (Fix Auto Flow)</small>
                 </div>
             </div>
             <button id="settings-btn" style="background:none; border:none; font-size:1.2rem">⚙️</button>
@@ -81,12 +80,12 @@
                     <textarea id="custom-dict" rows="3"></textarea>
                 </div>
                 <div class="version-info">
-                    <button id="check-update-btn" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#f0f0f0">檢查更新 (目前 v1.2.0)</button>
+                    <button id="check-update-btn" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#f0f0f0">檢查更新 (目前 v1.2.1)</button>
                 </div>
                 <button id="save-settings" style="width:100%; padding:12px; background:#2196F3; color:white; border:none; border-radius:8px; font-weight:bold">儲存並關閉</button>
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.2.0" type="module"></script>
+    <script src="src/app.js?v=1.2.1" type="module"></script>
 </body>
 </html>

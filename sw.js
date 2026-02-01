@@ -1,14 +1,14 @@
-const CACHE_NAME = 'pippi-voice-v1.2.0';
+const CACHE_NAME = 'pippi-voice-v1.2.1';
 const ASSETS = [
-  './index.html?v=1.2.0',
-  './src/style.css?v=1.2.0',
-  './src/app.js?v=1.2.0',
-  './src/utils.js?v=1.2.0',
-  './src/events.js?v=1.2.0',
-  './src/errors.js?v=1.2.0',
-  './src/speech.js?v=1.2.0',
-  './src/ai.js?v=1.2.0',
-  './manifest.json?v=1.2.0'
+  './index.html?v=1.2.1',
+  './src/style.css?v=1.2.1',
+  './src/app.js?v=1.2.1',
+  './src/utils.js?v=1.2.1',
+  './src/events.js?v=1.2.1',
+  './src/errors.js?v=1.2.1',
+  './src/speech.js?v=1.2.1',
+  './src/ai.js?v=1.2.1',
+  './manifest.json?v=1.2.1'
 ];
 
 self.addEventListener('install', (event) => {
@@ -36,7 +36,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // 對於 HTML 請求，嘗試網路優先
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))

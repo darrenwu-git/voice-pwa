@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.1.9 (Bug Fix for Update Button)
+// Pippi Voice - Main Controller v1.2.1
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -13,6 +13,7 @@ class AppController {
         this.setupDOM();
         this.bindEvents();
         this.loadSettings();
+        console.log('Pippi Voice Controller Initialized v1.2.1');
     }
 
     setupDOM() {
@@ -41,7 +42,6 @@ class AppController {
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
         
-        // Fix for Check Update Button
         if (this.el.checkUpdateBtn) {
             this.el.checkUpdateBtn.onclick = () => {
                 this.el.statusText.innerText = '正在檢查更新...';
@@ -49,7 +49,7 @@ class AppController {
                     navigator.serviceWorker.getRegistration().then(reg => {
                         if (reg) {
                             reg.update().then(() => {
-                                alert('檢查指令已發送！如果有新版本，它會在背景下載。請嘗試關閉 App 並重新開啟。');
+                                alert('檢查完成！如果有新版本，它會在背景下載並在下次開啟時生效。');
                                 window.location.reload();
                             });
                         } else {
@@ -69,16 +69,21 @@ class AppController {
         });
 
         this.bus.on(Events.STT_STATUS, (txt) => {
+            // 如果 AI 正在整理中，不要讓語音狀態覆蓋它
+            if (this.el.statusText.innerText.includes('智慧整理')) return;
             this.el.statusText.innerText = txt;
         });
 
         this.bus.on(Events.STT_ERROR, (err) => {
             const msg = ErrorMessages[err.code] || err.message;
-            alert('語音錯誤: ' + msg);
+            console.error('STT Error:', err);
+            this.el.statusText.innerText = '語音錯誤: ' + msg;
             this.stopRecording(false);
         });
 
-        this.bus.on(Events.AI_START, () => this.el.statusText.innerText = '正在智慧整理中...');
+        this.bus.on(Events.AI_START, () => {
+            this.el.statusText.innerText = '正在智慧整理中...';
+        });
         
         this.bus.on(Events.AI_SUCCESS, (res) => {
             this.el.output.innerText = res;
@@ -107,8 +112,12 @@ class AppController {
         this.el.micBtn.classList.remove('recording');
         this.el.micBtn.innerText = '🎤 開始錄音';
         
-        if (triggerFormat && this.el.output.innerText.trim()) {
-            await this.handleFormat();
+        if (triggerFormat) {
+            const text = this.el.output.innerText.trim();
+            if (text) {
+                console.log('Triggering auto-format...');
+                await this.handleFormat();
+            }
         }
     }
 
@@ -123,7 +132,7 @@ class AppController {
                 customDict: this.el.customDict.value.trim()
             });
         } catch (e) {
-            console.error('Format failed', e);
+            console.error('Format execution failed', e);
         }
     }
 
@@ -136,9 +145,16 @@ class AppController {
                 alert('已複製到剪貼簿');
             } else {
                 this.el.statusText.innerText = '✅ 整理完成並已自動複製';
+                // 短暫顯示後恢復
+                setTimeout(() => {
+                    if (this.el.statusText.innerText.includes('自動複製')) {
+                        this.el.statusText.innerText = '準備就緒';
+                    }
+                }, 3000);
             }
         }).catch(err => {
-            console.error('Copy failed', err);
+            console.error('Clipboard copy failed', err);
+            if (!silent) alert('複製失敗，請手動全選複製。');
         });
     }
 
