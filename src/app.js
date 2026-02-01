@@ -1,4 +1,5 @@
-// Pippi Voice - Main Controller v1.3.1 (Gemini 2.5 Fix)
+// Pippi Voice - Main Controller v1.3.2
+import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -16,7 +17,7 @@ class AppController {
         this.bindEvents();
         this.loadSettings();
         
-        console.log('Pippi Voice v1.3.1 Initialized');
+        console.log(`🐈 Pippi Voice v${VERSION} Initialized`);
     }
 
     setupDOM() {
@@ -37,6 +38,10 @@ class AppController {
             customDict: document.getElementById('custom-dict'),
             checkUpdateBtn: document.getElementById('check-update-btn')
         };
+        // 嚴格檢查 DOM 是否漏掉
+        Object.entries(this.el).forEach(([key, val]) => {
+            if (!val) console.error(`❌ Missing DOM element: ${key}`);
+        });
     }
 
     bindEvents() {
@@ -46,10 +51,29 @@ class AppController {
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
         
+        // 確保更新按鈕在每次初始化時都被正確綁定
         if (this.el.checkUpdateBtn) {
-            this.el.checkUpdateBtn.onclick = () => window.location.reload();
+            this.el.checkUpdateBtn.onclick = () => {
+                console.log('Update Check Triggered');
+                this.el.statusText.innerText = '正在檢查更新...';
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if (reg) {
+                            reg.update().then(() => {
+                                alert(`檢查完成！目前版本為 v${VERSION}。若有新版將在下次開啟時生效。`);
+                                window.location.reload();
+                            });
+                        } else {
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    window.location.reload();
+                }
+            };
         }
 
+        // Domain Events
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
             this.el.output.innerText = (final + interim).trim();
             this.el.output.scrollTop = this.el.output.scrollHeight;
@@ -83,16 +107,14 @@ class AppController {
                 this.el.micBtn.innerText = '🎤 開始錄音';
                 this.el.statusText.innerText = '準備就緒';
                 break;
-
             case AppState.RECORDING:
                 this.el.micBtn.innerText = '🛑 停止錄音';
                 this.el.micBtn.classList.add('recording');
                 this.el.statusDot.style.background = '#4CAF50';
                 this.speech.start(this.el.sttSelect.value, { apiKey: this.el.apiKey.value.trim() });
                 break;
-
             case AppState.STT_PROCESSING:
-                this.el.statusText.innerText = '正在上傳並辨識語音中...';
+                this.el.statusText.innerText = '正在轉寫語音檔案...';
                 this.el.micBtn.disabled = true;
                 try {
                     const transcript = await this.ai.transcribeAudio(data.blob, {
@@ -105,19 +127,16 @@ class AppController {
                     this.fsm.transition(AppState.ERROR, { message: '辨識失敗: ' + e.message });
                 }
                 break;
-
             case AppState.FORMATTING:
                 this.el.statusText.innerText = '正在智慧整理中...';
                 this.el.micBtn.disabled = true;
                 this.triggerAIFormat();
                 break;
-
             case AppState.SUCCESS:
                 this.el.statusText.innerText = '✅ 已自動完成複製';
                 this.handleCopy(true);
                 setTimeout(() => this.fsm.transition(AppState.IDLE), 3000);
                 break;
-
             case AppState.ERROR:
                 this.el.micBtn.innerText = '🎤 重新錄音';
                 this.el.statusText.innerText = data.message || '發生錯誤';
@@ -130,7 +149,7 @@ class AppController {
         if (!this.fsm.is(AppState.RECORDING)) {
             const apiKey = this.el.apiKey.value.trim();
             if (!apiKey && this.el.sttSelect.value !== 'web-speech') {
-                alert('使用此模式必須先設定 API Key');
+                alert('請先在設定中提供 API Key');
                 this.el.settingsModal.classList.remove('hidden');
                 return;
             }
@@ -147,10 +166,7 @@ class AppController {
 
     async triggerAIFormat() {
         const text = this.el.output.innerText.trim();
-        if (!text) {
-            this.fsm.transition(AppState.IDLE);
-            return;
-        }
+        if (!text) return this.fsm.transition(AppState.IDLE);
         await this.ai.formatText(text, {
             apiKey: this.el.apiKey.value.trim(),
             model: this.el.formatModelSelect.value,

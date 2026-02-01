@@ -3,38 +3,46 @@ import re
 import sys
 
 def validate():
-    print("🐈 Pippi Release Validator Starting...")
+    print("🐈 Pippi Safety Inspector Starting...")
     
-    # 1. 取得 index.html 裡的版本號
+    # 1. 檢查 config.js (唯一信源)
+    version = ""
+    with open('src/config.js', 'r') as f:
+        config_content = f.read()
+        match = re.search(r"VERSION = '(\d+\.\d+\.\d+)'", config_content)
+        if not match:
+            print("❌ Error: Could not find VERSION in src/config.js")
+            return False
+        version = match.group(1)
+        print(f"Target Version: v{version}")
+
+    # 2. 檢查 index.html 是否有同步引用
     with open('index.html', 'r') as f:
-        content = f.read()
-        version_match = re.search(r'v(\d+\.\d+\.\d+)', content)
-        if not version_match:
-            print("❌ Error: Could not find version tag in index.html")
+        html = f.read()
+        if 'src/config.js' not in html:
+            print("❌ Error: index.html is not importing src/config.js!")
             return False
-        current_version = version_match.group(1)
-        print(f"Detected version: v{current_version}")
 
-    # 2. 檢查 sw.js
+    # 3. 檢查 sw.js 是否有同步引用
     with open('sw.js', 'r') as f:
-        content = f.read()
-        if f"v{current_version}" not in content:
-            print(f"❌ Error: sw.js CACHE_NAME mismatch. Expected v{current_version}")
+        sw = f.read()
+        if 'src/config.js' not in sw:
+            print("❌ Error: sw.js is not importing src/config.js!")
             return False
-        
-        # 檢查 ASSETS 裡是否有帶版本號
-        if f"?v={current_version}" not in content:
-             print(f"⚠️ Warning: Some assets in sw.js might missing version suffix.")
 
-    # 3. 檢查 app.js
+    # 4. 檢查 app.js 核心邏輯
     with open('src/app.js', 'r') as f:
-        content = f.read()
-        # 檢查是否有核心狀態機邏輯關鍵字
-        if "fsm" not in content or "handleStateChange" not in content:
-            print("❌ Error: app.js seems to be missing State Machine logic!")
+        app = f.read()
+        # 核心檢查點：檢查更新按鈕是否被綁定
+        if 'checkUpdateBtn.onclick' not in app:
+            print("❌ Error: checkUpdateBtn.onclick is MISSING in app.js!")
+            return False
+        # 核心檢查點：自動整理邏輯
+        if 'triggerAIFormat()' not in app:
+            print("❌ Error: triggerAIFormat() call is MISSING in app.js!")
             return False
 
-    print("✅ All systems GO! Pippi is ready to push.")
+    print(f"✅ Validation Passed: v{version} is architecturally sound.")
     return True
 
 if __name__ == "__main__":

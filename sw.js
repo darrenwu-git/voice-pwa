@@ -1,20 +1,9 @@
-const CACHE_NAME = 'pippi-voice-v1.3.1';
-const ASSETS = [
-  './index.html?v=1.3.1',
-  './src/style.css?v=1.3.1',
-  './src/app.js?v=1.3.1',
-  './src/utils.js?v=1.3.1',
-  './src/events.js?v=1.3.1',
-  './src/errors.js?v=1.3.1',
-  './src/speech.js?v=1.3.1',
-  './src/ai.js?v=1.3.1',
-  './src/state.js?v=1.3.1',
-  './manifest.json?v=1.3.1'
-];
+import { VERSION, CACHE_NAME, ASSETS } from './src/config.js';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
+  const versionedAssets = ASSETS.map(url => `${url}?v=${VERSION}`);
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(versionedAssets)));
 });
 
 self.addEventListener('activate', (event) => {
