@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.4.9 (Customizable Workflow)
+// Pippi Voice - Main Controller v1.5.0 (Workflow Refinement)
 import { VERSION, VERSION_TAG } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -44,8 +44,8 @@ class AppController {
             sttModelSelect: document.getElementById('stt-model-select'),
             formatModelSelect: document.getElementById('format-model-select'),
             customDict: document.getElementById('custom-dict'),
-            autoFormatToggle: document.getElementById('auto-format-toggle'), // 新增
-            autoCopyToggle: document.getElementById('auto-copy-toggle'),     // 新增
+            autoFormatToggle: document.getElementById('auto-format-toggle'),
+            autoCopyToggle: document.getElementById('auto-copy-toggle'),
             checkUpdateBtn: document.getElementById('check-update-btn'),
             hardResetBtn: document.getElementById('hard-reset-btn'),
             versionTag: document.getElementById('version-tag')
@@ -60,6 +60,7 @@ class AppController {
         newVal = newVal ? newVal.trim() : "";
         if (newVal === this.currentValue) return;
         
+        console.log('[History] Checkpoint saved.');
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
         this.redoStack = []; 
@@ -127,16 +128,16 @@ class AppController {
             this.el.checkUpdateBtn.onclick = () => {
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistration().then(reg => {
-                        if (reg) reg.update().then(() => window.location.reload());
-                        else window.location.reload();
+                        if (reg) reg.update().then(() => window.location.reload(true));
+                        else window.location.reload(true);
                     });
-                } else window.location.reload();
+                } else window.location.reload(true);
             };
         }
 
         if (this.el.hardResetBtn) {
             this.el.hardResetBtn.onclick = () => {
-                if (confirm('這將清除所有快取並重置 App，確定嗎？')) {
+                if (confirm('確定要清除所有緩存並重置嗎？')) {
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.getRegistrations().then(regs => {
                             for(let reg of regs) reg.unregister();
@@ -183,7 +184,6 @@ class AppController {
             case AppState.IDLE:
                 this.el.micBtn.innerText = '🎤 開始錄音';
                 this.el.statusText.innerText = '準備就緒';
-                this.ai.abort();
                 break;
 
             case AppState.RECORDING:
@@ -208,10 +208,12 @@ class AppController {
                         this.el.output.innerText = transcript;
                         this.saveState(transcript);
                         
-                        // 檢查是否要自動整理
+                        // 嚴格檢查自動整理開關
                         if (this.el.autoFormatToggle.checked) {
+                            console.log('[Workflow] Auto Format Triggered');
                             this.fsm.transition(AppState.FORMATTING);
                         } else {
+                            console.log('[Workflow] Skipping Auto Format');
                             this.fsm.transition(AppState.SUCCESS);
                         }
                     } else {
@@ -233,6 +235,7 @@ class AppController {
 
             case AppState.SUCCESS:
                 const isAutoCopy = this.el.autoCopyToggle.checked;
+                console.log('[Workflow] Session completed. Auto Copy:', isAutoCopy);
                 this.el.statusText.innerText = isAutoCopy ? '✅ 辨識完成並已自動複製' : '✅ 辨識完成';
                 if (isAutoCopy) this.handleCopy(true);
                 setTimeout(() => { if (this.fsm.is(AppState.SUCCESS)) this.fsm.transition(AppState.IDLE); }, 3000);
@@ -257,11 +260,13 @@ class AppController {
             this.fsm.transition(AppState.RECORDING);
         } else {
             const audioBlob = await this.speech.stop();
+            const shouldFormat = this.el.autoFormatToggle.checked;
+            console.log('[Workflow] Manual Stop. Should Auto Format:', shouldFormat);
+
             if (this.el.sttSelect.value === 'gemini-file' && audioBlob) {
                 this.fsm.transition(AppState.STT_PROCESSING, { blob: audioBlob });
             } else {
-                // 原生模式或 WebSocket 模式下停止錄音
-                if (this.el.autoFormatToggle.checked) {
+                if (shouldFormat) {
                     this.fsm.transition(AppState.FORMATTING);
                 } else {
                     this.fsm.transition(AppState.SUCCESS);
@@ -285,7 +290,7 @@ class AppController {
         if (!text) return;
         navigator.clipboard.writeText(text).then(() => {
             if (!silent) alert('已複製到剪貼簿');
-        });
+        }).catch(e => console.error('Copy failed', e));
     }
 
     saveSettings() {
@@ -297,6 +302,7 @@ class AppController {
         localStorage.setItem('pippi_auto_format', this.el.autoFormatToggle.checked);
         localStorage.setItem('pippi_auto_copy', this.el.autoCopyToggle.checked);
         this.el.settingsModal.classList.add('hidden');
+        alert('設定已儲存！');
     }
 
     loadSettings() {
@@ -306,7 +312,7 @@ class AppController {
         this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
         
-        // 預設開啟自動整理與複製
+        // 嚴格加載布林值
         this.el.autoFormatToggle.checked = localStorage.getItem('pippi_auto_format') !== 'false';
         this.el.autoCopyToggle.checked = localStorage.getItem('pippi_auto_copy') !== 'false';
         

@@ -1,6 +1,6 @@
-// Pippi Voice - Version Configuration v1.4.9
-export const VERSION = '1.4.9';
-export const VERSION_TAG = 'Custom Workflow';
+// Pippi Voice - Version Configuration v1.5.0
+export const VERSION = '1.5.0';
+export const VERSION_TAG = 'Workflow Logic Fix';
 export const CACHE_NAME = `pippi-voice-v${VERSION}`;
 
 export const ASSETS = [
