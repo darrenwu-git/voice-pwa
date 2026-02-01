@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pippi-voice-v1';
+const CACHE_NAME = 'pippi-voice-v1.0.1';
 const ASSETS = [
   './',
   './index.html',

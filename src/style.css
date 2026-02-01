@@ -43,6 +43,17 @@ header h1 {
     gap: 10px;
 }
 
+.logo div {
+    display: flex;
+    flex-direction: column;
+}
+
+#version-tag {
+    font-size: 0.6rem;
+    color: #999;
+    margin-top: -2px;
+}
+
 .header-icon {
     width: 32px;
     height: 32px;
