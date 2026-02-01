@@ -2,22 +2,22 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Pippi Voice - 智慧語音輸入</title>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2196F3">
-    <link rel="stylesheet" href="src/style.css?v=1.1.0">
+    <link rel="stylesheet" href="src/style.css?v=1.1.1">
     <link rel="apple-touch-icon" href="public/icons/icon-192x192.png">
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=1.1.0').then(reg => {
+                navigator.serviceWorker.register('./sw.js?v=1.1.1').then(reg => {
                     reg.onupdatefound = () => {
                         const installingWorker = reg.installing;
                         installingWorker.onstatechange = () => {
                             if (installingWorker.state === 'installed') {
                                 if (navigator.serviceWorker.controller) {
-                                    if (confirm('發現新版本 v1.1.0！是否立即更新？')) {
+                                    if (confirm('發現新版本 v1.1.1！是否立即更新？')) {
                                         window.location.reload();
                                     }
                                 }
@@ -44,7 +44,7 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon">
                 <div>
                     <h1>Pippi Voice</h1>
-                    <small id="version-tag">v1.1.0</small>
+                    <small id="version-tag">v1.1.1</small>
                 </div>
             </div>
             <button id="settings-btn" class="icon-btn">⚙️</button>
@@ -62,11 +62,15 @@
             </div>
 
             <div class="controls">
-                <button id="mic-btn" class="mic-btn">
-                    <span class="mic-icon">🎤</span>
-                </button>
-                <button id="format-btn" class="action-btn">✨ 自動整理</button>
-                <button id="copy-btn" class="action-btn">📋 複製內容</button>
+                <div class="mic-btn-container">
+                    <button id="mic-btn" class="mic-btn">
+                        <span class="mic-icon">🎤</span>
+                    </button>
+                </div>
+                <div class="action-buttons-row">
+                    <button id="format-btn" class="action-btn">✨ 自動整理</button>
+                    <button id="copy-btn" class="action-btn">📋 複製內容</button>
+                </div>
             </div>
         </main>
 
@@ -98,12 +102,12 @@ Pippi
 Darren Wu" rows="4"></textarea>
                 </div>
                 <div class="version-info">
-                    <button id="check-update-btn" class="secondary-btn">檢查更新 (目前 v1.1.0)</button>
+                    <button id="check-update-btn" class="secondary-btn">檢查更新 (目前 v1.1.1)</button>
                 </div>
                 <button id="save-settings" class="primary-btn">儲存並關閉</button>
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.1.0" type="module"></script>
+    <script src="src/app.js?v=1.1.1" type="module"></script>
 </body>
 </html>

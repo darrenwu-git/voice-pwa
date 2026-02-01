@@ -18,9 +18,9 @@ const customDictInput = document.getElementById('custom-dict');
 const modelSelect = document.getElementById('model-select');
 const formatBtn = document.getElementById('format-btn');
 const copyBtn = document.getElementById('copy-btn');
-const realtimeBuffer = document.getElementById('realtime-buffer');
 const finalOutput = document.getElementById('final-output');
 const checkUpdateBtn = document.getElementById('check-update-btn');
+const realtimeBuffer = document.getElementById('realtime-buffer');
 
 // Initialize UI
 if (apiKey) apiKeyInput.value = apiKey;
@@ -83,8 +83,10 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 interimTranscript += transcript;
             }
         }
-        realtimeBuffer.innerText = interimTranscript;
+        if (realtimeBuffer) realtimeBuffer.innerText = interimTranscript;
         finalOutput.innerText = (finalTranscript + interimTranscript).trim();
+        // 自動捲動到底部
+        finalOutput.scrollTop = finalOutput.scrollHeight;
     };
 
     recognition.onerror = (event) => {
@@ -118,7 +120,6 @@ saveSettingsBtn.onclick = () => {
     localStorage.setItem('pippi_custom_dict', customDict);
     localStorage.setItem('pippi_selected_model', selectedModel);
     settingsModal.classList.add('hidden');
-    console.log('Settings saved. Key length:', apiKey.length, 'Model:', selectedModel);
 };
 
 copyBtn.onclick = () => {
@@ -162,10 +163,9 @@ formatBtn.onclick = async () => {
 };
 
 function startRecording() {
-    // 開始新錄音時，清除舊資料
     finalTranscript = '';
-    realtimeBuffer.innerText = '';
     finalOutput.innerText = '';
+    if (realtimeBuffer) realtimeBuffer.innerText = '';
     
     isRecording = true;
     micBtn.classList.add('recording');
@@ -217,7 +217,6 @@ ${text}`;
     if (!response.ok) {
         const errData = await response.json();
         const msg = errData.error?.message || JSON.stringify(errData);
-        console.error('AI Error Details:', errData);
         throw new Error(`API 錯誤 (${response.status}): ${msg}`);
     }
 
