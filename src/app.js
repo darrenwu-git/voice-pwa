@@ -111,6 +111,8 @@ class AppController {
                 this.el.micBtn.innerText = '🛑 停止錄音';
                 this.el.micBtn.classList.add('recording');
                 this.el.statusDot.style.background = '#4CAF50';
+                // 新增：開始錄音時清空舊文字
+                this.el.output.innerText = '';
                 this.speech.start(this.el.sttSelect.value, { apiKey: this.el.apiKey.value.trim() });
                 break;
             case AppState.STT_PROCESSING:
