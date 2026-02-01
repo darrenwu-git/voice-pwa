@@ -1,14 +1,14 @@
-const CACHE_NAME = 'pippi-voice-v1.2.2';
+const CACHE_NAME = 'pippi-voice-v1.2.3';
 const ASSETS = [
-  './index.html?v=1.2.2',
-  './src/style.css?v=1.2.2',
-  './src/app.js?v=1.2.2',
-  './src/utils.js?v=1.2.2',
-  './src/events.js?v=1.2.2',
-  './src/errors.js?v=1.2.2',
-  './src/speech.js?v=1.2.2',
-  './src/ai.js?v=1.2.2',
-  './manifest.json?v=1.2.2'
+  './index.html?v=1.2.3',
+  './src/style.css?v=1.2.3',
+  './src/app.js?v=1.2.3',
+  './src/utils.js?v=1.2.3',
+  './src/events.js?v=1.2.3',
+  './src/errors.js?v=1.2.3',
+  './src/speech.js?v=1.2.3',
+  './src/ai.js?v=1.2.3',
+  './manifest.json?v=1.2.3'
 ];
 
 self.addEventListener('install', (event) => {

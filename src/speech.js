@@ -1,4 +1,4 @@
-// Pippi Voice - Speech Manager v1.2.2
+// Pippi Voice - Speech Manager v1.2.3 (Expert WebSocket Patch)
 import { Utils } from './utils.js';
 import { Events } from './events.js';
 import { PippiError, ErrorCodes } from './errors.js';
@@ -7,6 +7,7 @@ export class SpeechManager {
     constructor(eventBus) {
         this.bus = eventBus;
         this.isRecording = false;
+        this.isReady = false; // 用於 WebSocket setupComplete 旗標
         this.engine = 'web-speech';
         this.finalTranscript = '';
         this.processedFinalIndex = 0;
@@ -21,10 +22,7 @@ export class SpeechManager {
     }
 
     initWebSpeech() {
-        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-            console.warn('Web Speech API not supported');
-            return;
-        }
+        if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) return;
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         this.recognition = new SpeechRecognition();
         this.recognition.continuous = true;
@@ -33,10 +31,8 @@ export class SpeechManager {
 
         this.recognition.onresult = (event) => {
             if (this.engine !== 'web-speech' || !this.isRecording) return;
-            
             let interim = '';
             let newSegments = [];
-            
             for (let i = event.resultIndex; i < event.results.length; i++) {
                 const res = event.results[i];
                 if (res.isFinal) {
@@ -47,7 +43,6 @@ export class SpeechManager {
                     interim += res[0].transcript;
                 }
             }
-            
             if (newSegments.length > 0) {
                 const newText = newSegments.join('');
                 const hash = Utils.simpleHash(newText);
@@ -57,7 +52,6 @@ export class SpeechManager {
                 }
                 this.processedFinalIndex = event.results.length;
             }
-            
             this.bus.emit(Events.STT_RESULT, { final: this.finalTranscript, interim });
         };
 
@@ -75,16 +69,14 @@ export class SpeechManager {
 
     async start(engine, apiKey) {
         this.isRecording = true;
+        this.isReady = false;
         this.engine = engine;
         this.finalTranscript = '';
         this.processedFinalIndex = 0;
         this.lastFinalHash = '';
 
         if (engine === 'web-speech') {
-            if (!this.recognition) {
-                this.bus.emit(Events.STT_ERROR, new PippiError(ErrorCodes.STT_NOT_SUPPORTED));
-                return;
-            }
+            if (!this.recognition) return;
             this.recognition.start();
         } else {
             await this.startGeminiLive(apiKey);
@@ -95,26 +87,34 @@ export class SpeechManager {
         this.bus.emit(Events.STT_STATUS, '正在連線 Gemini Live...');
         try {
             this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenericService.BidiGenerateContent?key=${apiKey}`;
+            
+            // 專家建議 1: 使用 GenerativeService 而非 GenericService
+            const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
             this.socket = new WebSocket(url);
 
             this.socket.onopen = () => {
-                this.bus.emit(Events.STT_STATUS, '連線成功，發送初始化...');
-                this.socket.send(JSON.stringify({
+                this.bus.emit(Events.STT_STATUS, '連線成功，初始化中...');
+                const setup = {
                     setup: { 
                         model: "models/gemini-2.0-flash-exp",
-                        generation_config: { response_modalities: ["TEXT"], temperature: 0.7 },
-                        system_instruction: { parts: [{ text: "你是 Pippi Voice 的助理，請將語音轉為繁體中文文字。" }] }
+                        generation_config: { response_modalities: ["TEXT"] }
                     }
-                }));
+                };
+                this.socket.send(JSON.stringify(setup));
             };
 
-            this.socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+            this.socket.onmessage = async (event) => {
+                // 專家建議 4: 處理可能回傳的 Blob 格式
+                const rawText = event.data instanceof Blob ? await event.data.text() : event.data;
+                const data = JSON.parse(rawText);
+
+                // 專家建議 2: 收到 setupComplete 後才開始傳送音訊
                 if (data.setupComplete) {
+                    this.isReady = true;
                     this.bus.emit(Events.STT_STATUS, '準備就緒 (Gemini Live)');
                     this.setupAudioProcessor();
                 }
+
                 if (data.serverContent?.modelTurn?.parts) {
                     const text = data.serverContent.modelTurn.parts.map(p => p.text).join('');
                     if (text) {
@@ -125,13 +125,11 @@ export class SpeechManager {
             };
 
             this.socket.onerror = (e) => {
-                this.bus.emit(Events.STT_ERROR, new PippiError(ErrorCodes.WS_CONNECTION_FAILED, 'WebSocket 連線出錯'));
+                this.bus.emit(Events.STT_ERROR, new PippiError(ErrorCodes.WS_CONNECTION_FAILED));
                 this.stop();
             };
 
-            this.socket.onclose = () => {
-                if (this.isRecording) this.stop();
-            };
+            this.socket.onclose = () => { if (this.isRecording) this.stop(); };
 
         } catch (err) {
             this.bus.emit(Events.STT_ERROR, new PippiError(ErrorCodes.STT_PERMISSION_DENIED, err.message));
@@ -147,27 +145,37 @@ export class SpeechManager {
         this.processor.connect(this.audioContext.destination);
 
         this.processor.onaudioprocess = (e) => {
-            if (!this.isRecording || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+            if (!this.isRecording || !this.isReady || !this.socket || this.socket.readyState !== WebSocket.OPEN) return;
+            
             const inputData = e.inputBuffer.getChannelData(0);
             const pcmData = new Int16Array(inputData.length);
             for (let i = 0; i < inputData.length; i++) {
                 const s = Math.max(-1, Math.min(1, inputData[i]));
                 pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
             }
-            const uint8Array = new Uint8Array(pcmData.buffer);
-            let binary = '';
-            for (let i = 0; i < uint8Array.length; i++) binary += String.fromCharCode(uint8Array[i]);
+            
+            // 專家建議 3: 安全的 Base64 轉換避免 Stack Overflow
+            const base64Data = this.arrayBufferToBase64(pcmData.buffer);
+            
             this.socket.send(JSON.stringify({
-                realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: btoa(binary) }] }
+                realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: base64Data }] }
             }));
         };
     }
 
+    arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        for (let i = 0; i < bytes.byteLength; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary);
+    }
+
     stop() {
         this.isRecording = false;
-        if (this.recognition) {
-            try { this.recognition.stop(); } catch(e) {}
-        }
+        this.isReady = false;
+        if (this.recognition) { try { this.recognition.stop(); } catch(e) {} }
         if (this.processor) { this.processor.disconnect(); this.processor = null; }
         if (this.audioContext) { this.audioContext.close(); this.audioContext = null; }
         if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
