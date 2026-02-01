@@ -81,11 +81,12 @@ formatBtn.onclick = async () => {
 
 async function startRecording() {
     try {
+        statusText.innerText = '正在請求麥克風權限...';
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         isRecording = true;
         micBtn.classList.add('recording');
         statusDot.classList.add('active');
-        statusText.innerText = '正在連線...';
+        statusText.innerText = '正在連線至 Gemini Live...';
 
         const model = "gemini-2.0-flash-exp";
         const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenericService.BidiGenerateContent?key=${apiKey}`;
@@ -93,10 +94,12 @@ async function startRecording() {
         socket = new WebSocket(url);
 
         socket.onopen = () => {
-            statusText.innerText = '連線成功，請開始說話';
-            // Send setup message
+            statusText.innerText = '連線成功，發送初始化設定...';
             const setup = {
-                setup: { model: `models/${model}` }
+                setup: { 
+                    model: `models/${model}`,
+                    generation_config: { response_modalities: ["TEXT"] }
+                }
             };
             socket.send(JSON.stringify(setup));
             setupAudioProcessor();
@@ -104,36 +107,51 @@ async function startRecording() {
 
         socket.onmessage = async (event) => {
             const response = JSON.parse(event.data);
+            
+            // 處理即時回傳的文字
             if (response.serverContent?.modelTurn?.parts) {
                 const parts = response.serverContent.modelTurn.parts;
-                const text = parts.map(p => p.text).join('');
+                const text = parts.map(p => p.text).filter(t => t).join('');
                 if (text) {
                     realtimeBuffer.innerText = text;
-                    finalOutput.innerText += text + ' ';
+                    finalOutput.innerText += text;
                 }
+            }
+            
+            // 如果連線剛建立成功
+            if (response.setupComplete) {
+                statusText.innerText = '準備就緒，請開始說話';
             }
         };
 
         socket.onerror = (e) => {
             console.error('WebSocket Error:', e);
-            statusText.innerText = '連線錯誤';
+            alert('WebSocket 連線失敗，請檢查 API Key 是否正確。');
             stopRecording();
         };
 
-        socket.onclose = () => {
-            statusText.innerText = '連線已斷開';
-            stopRecording();
+        socket.onclose = (e) => {
+            if (isRecording) {
+                console.log('WebSocket Closed:', e);
+                if (e.code === 1006) {
+                    alert('連線被異常關閉。可能是 API Key 不支援 Gemini 2.0 Live，或網路受阻。');
+                }
+                stopRecording();
+            }
         };
 
     } catch (err) {
         console.error('錄音失敗:', err);
-        alert('無法開啟麥克風：' + err.message);
+        alert('錄音失敗：' + err.message);
+        stopRecording();
     }
 }
 
 function setupAudioProcessor() {
     audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
     const source = audioContext.createMediaStreamSource(stream);
+    
+    // 使用 ScriptProcessor (雖然已棄用但相容性最高)
     processor = audioContext.createScriptProcessor(4096, 1, 1);
 
     source.connect(processor);
@@ -141,12 +159,23 @@ function setupAudioProcessor() {
 
     processor.onaudioprocess = (e) => {
         if (!isRecording || !socket || socket.readyState !== WebSocket.OPEN) return;
+        
         const inputData = e.inputBuffer.getChannelData(0);
         const pcmData = new Int16Array(inputData.length);
         for (let i = 0; i < inputData.length; i++) {
-            pcmData[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+            // 將浮點數轉為 16-bit PCM
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
         }
-        const base64Data = btoa(String.fromCharCode(...new Uint8Array(pcmData.buffer)));
+        
+        // 轉為 Base64
+        const uint8Array = new Uint8Array(pcmData.buffer);
+        let binary = '';
+        for (let i = 0; i < uint8Array.length; i++) {
+            binary += String.fromCharCode(uint8Array[i]);
+        }
+        const base64Data = btoa(binary);
+
         socket.send(JSON.stringify({
             realtimeInput: {
                 mediaChunks: [{
@@ -177,7 +206,9 @@ function stopRecording() {
         stream = null;
     }
     if (socket) {
-        socket.close();
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.close();
+        }
         socket = null;
     }
 }
