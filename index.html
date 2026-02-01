@@ -6,6 +6,31 @@
     <title>Pippi Voice</title>
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="src/style.css">
+    <script type="module">
+        import { VERSION, VERSION_TAG } from './src/config.js';
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            const tag = document.getElementById('version-tag');
+            if (tag) tag.innerText = `v${VERSION} (${VERSION_TAG})`;
+            const btn = document.getElementById('check-update-btn');
+            if (btn) btn.innerText = `檢查更新 (目前 v${VERSION})`;
+        });
+
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(`./sw.js?v=${VERSION}`, { type: 'module' }).then(reg => {
+                reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    installingWorker.onstatechange = () => {
+                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (confirm(`發現新版本 v${VERSION}！是否立即更新以修復版面問題？`)) {
+                                window.location.reload();
+                            }
+                        }
+                    };
+                };
+            });
+        }
+    </script>
 </head>
 <body>
     <div id="app">
@@ -14,14 +39,14 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon">
                 <div>
                     <h1>Pippi Voice</h1>
-                    <small id="version-tag">Initializing...</small>
+                    <small id="version-tag">載入中...</small>
                 </div>
             </div>
             <button id="settings-btn" style="background:none; border:none; font-size:1.2rem">⚙️</button>
         </header>
 
         <div id="status-bar">
-            <span class="status-dot" style="width:8px; height:8px; background:#ccc; border-radius:50%"></span>
+            <span class="status-dot"></span>
             <span id="status-text">準備就緒</span>
         </div>
 
