@@ -90,6 +90,7 @@ saveSettingsBtn.onclick = () => {
     localStorage.setItem('pippi_gemini_api_key', apiKey);
     localStorage.setItem('pippi_custom_dict', customDict);
     settingsModal.classList.add('hidden');
+    console.log('Settings saved. Key length:', apiKey.length);
 };
 
 copyBtn.onclick = () => {
