@@ -1,17 +1,17 @@
-const CACHE_NAME = 'pippi-voice-v1.1.8';
+const CACHE_NAME = 'pippi-voice-v1.1.9';
 const ASSETS = [
   './',
   './index.html',
   './test.html',
-  './src/style.css?v=1.1.8',
-  './src/app.js?v=1.1.8',
-  './src/utils.js?v=1.1.8',
-  './src/events.js?v=1.1.8',
-  './src/errors.js?v=1.1.8',
-  './src/speech.js?v=1.1.8',
-  './src/ai.js?v=1.1.8',
+  './src/style.css?v=1.1.9',
+  './src/app.js?v=1.1.9',
+  './src/utils.js?v=1.1.9',
+  './src/events.js?v=1.1.9',
+  './src/errors.js?v=1.1.9',
+  './src/speech.js?v=1.1.9',
+  './src/ai.js?v=1.1.9',
   './manifest.json',
-  './sw.js?v=1.1.8',
+  './sw.js?v=1.1.9',
   './public/icons/icon-192x192.png',
   './public/icons/icon-512x512.png'
 ];

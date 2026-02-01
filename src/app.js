@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.1.8 (Automation Update)
+// Pippi Voice - Main Controller v1.1.9 (Bug Fix for Update Button)
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -28,7 +28,8 @@ class AppController {
             apiKey: document.getElementById('api-key'),
             sttSelect: document.getElementById('stt-select'),
             modelSelect: document.getElementById('model-select'),
-            customDict: document.getElementById('custom-dict')
+            customDict: document.getElementById('custom-dict'),
+            checkUpdateBtn: document.getElementById('check-update-btn')
         };
     }
 
@@ -39,6 +40,27 @@ class AppController {
         this.el.copyBtn.onclick = () => this.handleCopy();
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
+        
+        // Fix for Check Update Button
+        if (this.el.checkUpdateBtn) {
+            this.el.checkUpdateBtn.onclick = () => {
+                this.el.statusText.innerText = '正在檢查更新...';
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistration().then(reg => {
+                        if (reg) {
+                            reg.update().then(() => {
+                                alert('檢查指令已發送！如果有新版本，它會在背景下載。請嘗試關閉 App 並重新開啟。');
+                                window.location.reload();
+                            });
+                        } else {
+                            window.location.reload();
+                        }
+                    });
+                } else {
+                    window.location.reload();
+                }
+            };
+        }
 
         // App Events
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
@@ -53,7 +75,7 @@ class AppController {
         this.bus.on(Events.STT_ERROR, (err) => {
             const msg = ErrorMessages[err.code] || err.message;
             alert('語音錯誤: ' + msg);
-            this.stopRecording(false); // Stop without auto-format
+            this.stopRecording(false);
         });
 
         this.bus.on(Events.AI_START, () => this.el.statusText.innerText = '正在智慧整理中...');
@@ -61,7 +83,6 @@ class AppController {
         this.bus.on(Events.AI_SUCCESS, (res) => {
             this.el.output.innerText = res;
             this.el.statusText.innerText = '整理完成';
-            // 自動複製
             this.handleCopy(true); 
         });
 
@@ -77,7 +98,7 @@ class AppController {
             this.el.micBtn.classList.add('recording');
             this.el.micBtn.innerText = '🛑 停止錄音';
         } else {
-            this.stopRecording(true); // Stop and trigger auto-format
+            this.stopRecording(true); 
         }
     }
 
