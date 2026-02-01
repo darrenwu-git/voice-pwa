@@ -111,6 +111,10 @@ main {
     flex-shrink: 0;
 }
 
+.buffer-text.hidden {
+    display: none;
+}
+
 .output-text {
     flex: 1;
     background: var(--card);
