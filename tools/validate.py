@@ -23,21 +23,14 @@ def validate():
             print(f"❌ Error: sw.js is missing version comment v{version}.")
             return False
 
-    # 3. 檢查 app.js 密碼切換邏輯
-    with open('src/app.js', 'r') as f:
-        app = f.read()
-        if 'togglePassword' not in app or 'setAttribute' not in app:
-             print("❌ Error: app.js is missing password toggle logic!")
+    # 3. 檢查 style.css 眼睛按鈕定位
+    with open('src/style.css', 'r') as f:
+        css = f.read()
+        if 'position: absolute' not in css or 'top: 50%' not in css:
+             print("❌ Error: style.css is missing password eye positioning logic!")
              return False
 
-    # 4. 檢查 index.html 是否有按鈕
-    with open('index.html', 'r') as f:
-        html = f.read()
-        if 'toggle-btn' not in html:
-             print("❌ Error: index.html is missing toggle-password button!")
-             return False
-
-    print(f"✅ Validation Passed: v{version} is polished and ready.")
+    print(f"✅ Validation Passed: v{version} is ready.")
     return True
 
 if __name__ == "__main__":

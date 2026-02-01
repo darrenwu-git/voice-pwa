@@ -109,20 +109,49 @@ header {
 .input-group label { display: block; font-size: 0.8rem; margin-bottom: 4px; }
 .input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; }
 
-/* Password Wrapper & Eye Toggle */
+/* Password Wrapper & Eye Toggle Fix */
 .password-wrapper {
     position: relative;
+    width: 100%;
     display: flex;
     align-items: center;
+}
+
+.password-wrapper input {
+    padding-right: 40px !important; /* 為右側按鈕留空間 */
 }
 
 .toggle-btn {
     position: absolute;
     right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 1.1rem;
     padding: 4px;
     line-height: 1;
+    z-index: 2;
+}
+
+.secondary-btn {
+    width: 100%;
+    padding: 0.6rem;
+    background: #eee;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 0.6rem;
+    font-size: 0.7rem;
+}
+
+.primary-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
 }
