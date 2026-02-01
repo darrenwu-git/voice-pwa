@@ -1,4 +1,4 @@
-// Pippi Service Worker v1.3.9
+// Pippi Service Worker v1.4.0
 import { VERSION, CACHE_NAME, ASSETS } from './src/config.js';
 
 self.addEventListener('install', (event) => {

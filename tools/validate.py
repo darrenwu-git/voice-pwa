@@ -16,7 +16,7 @@ def validate():
         version = match.group(1)
         print(f"Target Version: v{version}")
 
-    # 2. 檢查 sw.js
+    # 2. 檢查 sw.js 是否包含硬編碼版本註解
     with open('sw.js', 'r') as f:
         sw = f.read()
         if f"v{version}" not in sw:
@@ -26,11 +26,18 @@ def validate():
     # 3. 檢查 app.js 核心邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
-        if 'redoBtn' not in app or 'handleRedo' not in app:
-             print("❌ Error: app.js is missing v1.3.9 'Redo' logic!")
+        if 'redoStack' not in app or 'handleRedo' not in app or 'saveState' not in app:
+             print("❌ Error: app.js is missing core Undo/Redo logic!")
              return False
 
-    print(f"✅ Validation Passed: v{version} is ready.")
+    # 4. 檢查 test.html 是否已更新
+    with open('test.html', 'r') as f:
+        test = f.read()
+        if f"v{version}" not in test:
+             print(f"❌ Error: test.html is outdated (expected v{version})")
+             return False
+
+    print(f"✅ Validation Passed: v{version} is architecturally sound.")
     return True
 
 if __name__ == "__main__":

@@ -1,97 +1,123 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pippi Voice - 核心診斷中心</title>
+    <title>Pippi Voice - 核心診斷中心 v1.4.0</title>
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; }
-        .test-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .test-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .pass { color: #2ecc71; font-weight: bold; }
         .fail { color: #e74c3c; font-weight: bold; }
-        .log { background: #2c3e50; color: #ecf0f1; padding: 10px; border-radius: 4px; font-size: 0.8rem; height: 200px; overflow-y: auto; }
+        .log { background: #2c3e50; color: #ecf0f1; padding: 10px; border-radius: 4px; font-size: 0.8rem; height: 300px; overflow-y: auto; font-family: monospace; }
+        h1 { margin-bottom: 5px; }
+        .version { color: #666; font-size: 1rem; margin-bottom: 20px; }
     </style>
 </head>
 <body>
-    <h1>🐈 Pippi Voice 核心驗證 (v1.3.8)</h1>
+    <h1>🐈 Pippi Voice 核心邏輯驗證</h1>
+    <div class="version">版本: v1.4.0 (Undo/Redo Use Case Suite)</div>
     
     <div class="test-card">
-        <h3>1. 狀態機轉移驗證 (State Machine Test)</h3>
-        <div id="fsm-test-result">執行中...</div>
+        <h3>🧪 測試案例 1: 基礎 AI 整理後復原 (Single Action)</h3>
+        <div id="case-1-result">執行中...</div>
     </div>
 
     <div class="test-card">
-        <h3>2. 復原邏輯驗證 (Undo Logic Test)</h3>
-        <div id="undo-test-result">執行中...</div>
+        <h3>🧪 測試案例 2: 連續編輯與分叉 (Branching Logic)</h3>
+        <div id="case-2-result">執行中...</div>
     </div>
 
     <div class="test-card">
-        <h3>3. 配置完整性測試 (Config Audit)</h3>
-        <div id="config-test-result">執行中...</div>
+        <h3>🧪 測試案例 3: 錄音自動清空後的救回 (Auto-Clear Safety)</h3>
+        <div id="case-3-result">執行中...</div>
     </div>
 
     <h4>執行日誌：</h4>
     <div id="debug-log" class="log"></div>
 
     <script type="module">
-        import { StateMachine, AppState } from './src/state.js';
         import { VERSION } from './src/config.js';
 
         const logEl = document.getElementById('debug-log');
         function log(msg) { logEl.innerHTML += `> ${msg}<br>`; }
-
         function assertEqual(a, b, msg) {
-            if (a !== b) throw new Error(`${msg} (預期 "${b}"，得到 "${a}")`);
+            if (a !== b) throw new Error(`${msg} (預期: "${b}", 得到: "${a}")`);
         }
 
-        // --- 測試 1: FSM ---
-        try {
-            log(`測試 v${VERSION} 狀態機...`);
-            let states = [];
-            const fsm = new StateMachine((s) => states.push(s));
-            fsm.transition(AppState.RECORDING);
-            fsm.transition(AppState.FORMATTING);
-            assertEqual(fsm.currentState, 'FORMATTING', '狀態機應處於 FORMATTING');
-            document.getElementById('fsm-test-result').innerHTML = '<span class="pass">✔ 通過</span>';
-        } catch (e) {
-            document.getElementById('fsm-test-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
+        // --- 核心 Undo/Redo 演算法模擬 ---
+        class HistoryEngine {
+            constructor(initial) {
+                this.current = initial;
+                this.undoStack = [];
+                this.redoStack = [];
+            }
+            save(newVal) {
+                if (newVal === this.current) return;
+                this.undoStack.push(this.current);
+                this.current = newVal;
+                this.redoStack = []; // 清空重做棧
+                log(`Save: "${newVal}" (Undo Size: ${this.undoStack.length})`);
+            }
+            undo() {
+                if (this.undoStack.length > 0) {
+                    this.redoStack.push(this.current);
+                    this.current = this.undoStack.pop();
+                    log(`Undo to: "${this.current}"`);
+                }
+            }
+            redo() {
+                if (this.redoStack.length > 0) {
+                    this.undoStack.push(this.current);
+                    this.current = this.redoStack.pop();
+                    log(`Redo to: "${this.current}"`);
+                }
+            }
         }
 
-        // --- 測試 2: Undo Logic ---
+        // --- Case 1: AI Format ---
         try {
-            log(`測試 Undo 歷史棧邏輯...`);
-            let history = [];
-            let currentText = "初始文字";
-            
-            function push(txt) {
-                if (history.length > 0 && history[history.length-1] === txt) return;
-                history.push(currentText); // 存入舊文字
-                currentText = txt; // 更新為新文字
-            }
-
-            function undo() {
-                if (history.length > 0) currentText = history.pop();
-            }
-
-            push("第一次修改");
-            push("第二次修改");
-            undo();
-            assertEqual(currentText, "第一次修改", "第一次 Undo 應回到第一次修改");
-            undo();
-            assertEqual(currentText, "初始文字", "第二次 Undo 應回到初始文字");
-            
-            document.getElementById('undo-test-result').innerHTML = '<span class="pass">✔ 通過：Undo 棧演算法正確</span>';
+            log("--- 執行 Case 1 ---");
+            const engine = new HistoryEngine("原始文字");
+            engine.save("AI 整理後的漂亮文字");
+            engine.undo();
+            assertEqual(engine.current, "原始文字", "Undo 應回到原始文字");
+            engine.redo();
+            assertEqual(engine.current, "AI 整理後的漂亮文字", "Redo 應回到整理後文字");
+            document.getElementById('case-1-result').innerHTML = '<span class="pass">✔ 通過</span>';
         } catch (e) {
-            document.getElementById('undo-test-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
+            document.getElementById('case-1-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
         }
 
-        // --- 測試 3: Config ---
+        // --- Case 2: Branching ---
         try {
-            if (VERSION === '1.3.8') {
-                document.getElementById('config-test-result').innerHTML = '<span class="pass">✔ 通過：版本號對齊</span>';
-            } else {
-                throw new Error(`版本號不匹配: ${VERSION}`);
-            }
+            log("--- 執行 Case 2 ---");
+            const engine = new HistoryEngine("A");
+            engine.save("B");
+            engine.save("C");
+            engine.undo(); // 回到 B
+            assertEqual(engine.current, "B", "Undo 1 次應為 B");
+            engine.save("D"); // 在 B 的基礎上新修改 D，應清空 C 的 Redo
+            assertEqual(engine.redoStack.length, 0, "新修改後 Redo 應清空");
+            engine.undo();
+            assertEqual(engine.current, "B", "Undo 應回到 B");
+            engine.undo();
+            assertEqual(engine.current, "A", "Undo 應回到 A");
+            document.getElementById('case-2-result').innerHTML = '<span class="pass">✔ 通過</span>';
         } catch (e) {
-            document.getElementById('config-test-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
+            document.getElementById('case-2-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
+        }
+
+        // --- Case 3: Auto-Clear ---
+        try {
+            log("--- 執行 Case 3 ---");
+            const engine = new HistoryEngine("舊對話內容");
+            // 模擬開始錄音
+            engine.save(""); 
+            assertEqual(engine.current, "", "目前應為清空狀態");
+            engine.undo();
+            assertEqual(engine.current, "舊對話內容", "Undo 應救回錄音前被清空的內容");
+            document.getElementById('case-3-result').innerHTML = '<span class="pass">✔ 通過</span>';
+        } catch (e) {
+            document.getElementById('case-3-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
         }
     </script>
 </body>

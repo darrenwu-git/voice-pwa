@@ -1,5 +1,5 @@
-// Pippi Voice - Version Configuration v1.3.9
-export const VERSION = '1.3.9';
+// Pippi Voice - Version Configuration v1.4.0
+export const VERSION = '1.4.0';
 export const CACHE_NAME = `pippi-voice-v${VERSION}`;
 
 export const ASSETS = [
