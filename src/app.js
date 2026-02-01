@@ -1,9 +1,15 @@
-// Pippi Voice App Logic - Web Speech API Version
+// Pippi Voice App Logic - v1.1.2
 let isRecording = false;
 let apiKey = localStorage.getItem('pippi_gemini_api_key') || '';
 let customDict = localStorage.getItem('pippi_custom_dict') || '';
 let selectedModel = localStorage.getItem('pippi_selected_model') || 'gemini-2.5-flash';
-let recognition = null;
+let selectedSTT = localStorage.getItem('pippi_selected_stt') || 'web-speech';
+
+let recognition = null; // For Web Speech API
+let socket = null;      // For Gemini Live WebSocket
+let audioContext = null;
+let processor = null;
+let stream = null;
 let finalTranscript = '';
 
 // DOM Elements
@@ -16,6 +22,7 @@ const saveSettingsBtn = document.getElementById('save-settings');
 const apiKeyInput = document.getElementById('api-key');
 const customDictInput = document.getElementById('custom-dict');
 const modelSelect = document.getElementById('model-select');
+const sttSelect = document.getElementById('stt-select');
 const formatBtn = document.getElementById('format-btn');
 const copyBtn = document.getElementById('copy-btn');
 const finalOutput = document.getElementById('final-output');
@@ -26,6 +33,7 @@ const realtimeBuffer = document.getElementById('realtime-buffer');
 if (apiKey) apiKeyInput.value = apiKey;
 if (customDict) customDictInput.value = customDict;
 if (selectedModel) modelSelect.value = selectedModel;
+if (selectedSTT) sttSelect.value = selectedSTT;
 
 checkUpdateBtn.onclick = () => {
     if ('serviceWorker' in navigator) {
@@ -33,7 +41,7 @@ checkUpdateBtn.onclick = () => {
         navigator.serviceWorker.getRegistration().then(reg => {
             if (reg) {
                 reg.update().then(() => {
-                    alert('檢查完成！如果有新版本，它會在背景下載並在下次開啟時生效，或者現在重新整理。');
+                    alert('檢查完成！如果有新版本，它會在背景下載並在下次開啟時生效。');
                     window.location.reload();
                 });
             } else {
@@ -58,7 +66,7 @@ togglePasswordBtn.onclick = () => {
 
 if (!apiKey) settingsModal.classList.remove('hidden');
 
-// Initialize Web Speech API
+// --- Web Speech API Setup ---
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
@@ -66,48 +74,38 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.interimResults = true;
     recognition.lang = 'zh-TW';
 
-    recognition.onstart = () => {
-        statusText.innerText = '正在聆聽中... (請說話)';
-    };
-
     recognition.onresult = (event) => {
+        if (selectedSTT !== 'web-speech') return;
+        
         let interimTranscript = '';
+        let currentFinal = '';
+        
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             let transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-                if (finalTranscript.length > 0 && !finalTranscript.endsWith(' ')) {
-                    finalTranscript += ' ';
-                }
-                finalTranscript += transcript.trim();
+                currentFinal += transcript;
             } else {
                 interimTranscript += transcript;
             }
         }
+        
+        if (currentFinal) {
+            if (finalTranscript.length > 0 && !finalTranscript.endsWith(' ')) {
+                finalTranscript += ' ';
+            }
+            finalTranscript += currentFinal.trim();
+        }
+
         if (realtimeBuffer) realtimeBuffer.innerText = interimTranscript;
         finalOutput.innerText = (finalTranscript + interimTranscript).trim();
-        // 自動捲動到底部
         finalOutput.scrollTop = finalOutput.scrollHeight;
     };
 
-    recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        statusText.innerText = '辨識發生錯誤: ' + event.error;
-        stopRecording();
-    };
-
     recognition.onend = () => {
-        if (isRecording) {
-            try {
-                recognition.start();
-            } catch (e) {
-                console.log('Recognition restart attempt failed:', e);
-            }
-        } else {
-            statusText.innerText = '已停止';
+        if (isRecording && selectedSTT === 'web-speech') {
+            try { recognition.start(); } catch (e) {}
         }
     };
-} else {
-    alert('很抱歉，您的瀏覽器不支援語音辨識功能。');
 }
 
 // UI Handlers
@@ -116,9 +114,11 @@ saveSettingsBtn.onclick = () => {
     apiKey = apiKeyInput.value.trim();
     customDict = customDictInput.value.trim();
     selectedModel = modelSelect.value;
+    selectedSTT = sttSelect.value;
     localStorage.setItem('pippi_gemini_api_key', apiKey);
     localStorage.setItem('pippi_custom_dict', customDict);
     localStorage.setItem('pippi_selected_model', selectedModel);
+    localStorage.setItem('pippi_selected_stt', selectedSTT);
     settingsModal.classList.add('hidden');
 };
 
@@ -130,6 +130,11 @@ copyBtn.onclick = () => {
 };
 
 micBtn.onclick = () => {
+    if (!apiKey && selectedSTT === 'gemini-live') {
+        alert('使用 Gemini Live 必須先設定 API Key');
+        settingsModal.classList.remove('hidden');
+        return;
+    }
     if (!isRecording) startRecording();
     else stopRecording();
 };
@@ -137,13 +142,11 @@ micBtn.onclick = () => {
 formatBtn.onclick = async () => {
     const text = finalOutput.innerText.trim();
     if (!text) return;
-    
     if (!apiKey) {
         alert('請先在設定中輸入 Gemini API Key');
         settingsModal.classList.remove('hidden');
         return;
     }
-    
     statusText.innerText = '正在智慧整理中...';
     try {
         const formatted = await formatTextWithAI(text);
@@ -154,15 +157,11 @@ formatBtn.onclick = async () => {
         }
     } catch (e) {
         statusText.innerText = '整理失敗';
-        const maskedKey = apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 3)}` : '無';
-        alert(`AI 整理失敗。
-使用的 Key: ${maskedKey} (長度: ${apiKey.length})
-使用的模型: ${modelSelect.value}
-錯誤資訊: ${e.message}`);
+        alert(`AI 整理失敗。\n使用的模型: ${modelSelect.value}\n錯誤資訊: ${e.message}`);
     }
 };
 
-function startRecording() {
+async function startRecording() {
     finalTranscript = '';
     finalOutput.innerText = '';
     if (realtimeBuffer) realtimeBuffer.innerText = '';
@@ -170,19 +169,105 @@ function startRecording() {
     isRecording = true;
     micBtn.classList.add('recording');
     statusDot.classList.add('active');
-    
-    try {
+
+    if (selectedSTT === 'web-speech') {
+        statusText.innerText = '正在聆聽中... (原生引擎)';
         recognition.start();
-    } catch (e) {
-        console.error('Recognition start failed:', e);
+    } else {
+        await startGeminiLive();
     }
 }
 
-function stopRecording() {
+async function stopRecording() {
     isRecording = false;
     micBtn.classList.remove('recording');
     statusDot.classList.remove('active');
-    recognition.stop();
+    statusText.innerText = '已停止';
+
+    if (selectedSTT === 'web-speech') {
+        recognition.stop();
+    } else {
+        stopGeminiLive();
+    }
+}
+
+// --- Gemini Live WebSocket Logic ---
+async function startGeminiLive() {
+    try {
+        statusText.innerText = '正在連線 Gemini Live...';
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenericService.BidiGenerateContent?key=${apiKey}`;
+        socket = new WebSocket(url);
+
+        socket.onopen = () => {
+            statusText.innerText = '連線成功，初始化中...';
+            const setup = {
+                setup: { 
+                    model: "models/gemini-2.0-flash-exp",
+                    generation_config: { response_modalities: ["TEXT"] }
+                }
+            };
+            socket.send(JSON.stringify(setup));
+        };
+
+        socket.onmessage = async (event) => {
+            const response = JSON.parse(event.data);
+            if (response.setupComplete) {
+                statusText.innerText = '準備就緒 (Gemini Live)';
+                setupAudioProcessor();
+            }
+            if (response.serverContent?.modelTurn?.parts) {
+                const text = response.serverContent.modelTurn.parts.map(p => p.text).join('');
+                if (text) {
+                    finalOutput.innerText += text;
+                    finalOutput.scrollTop = finalOutput.scrollHeight;
+                }
+            }
+        };
+
+        socket.onerror = (e) => {
+            alert('Gemini Live 連線錯誤，請確認 Key 是否支援 2.0 Live。');
+            stopRecording();
+        };
+
+        socket.onclose = () => stopRecording();
+
+    } catch (err) {
+        alert('錄音失敗：' + err.message);
+        stopRecording();
+    }
+}
+
+function stopGeminiLive() {
+    if (processor) { processor.disconnect(); processor = null; }
+    if (audioContext) { audioContext.close(); audioContext = null; }
+    if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+    if (socket) { if (socket.readyState === WebSocket.OPEN) socket.close(); socket = null; }
+}
+
+function setupAudioProcessor() {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+    const source = audioContext.createMediaStreamSource(stream);
+    processor = audioContext.createScriptProcessor(4096, 1, 1);
+    source.connect(processor);
+    processor.connect(audioContext.destination);
+
+    processor.onaudioprocess = (e) => {
+        if (!isRecording || !socket || socket.readyState !== WebSocket.OPEN) return;
+        const inputData = e.inputBuffer.getChannelData(0);
+        const pcmData = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+        const uint8Array = new Uint8Array(pcmData.buffer);
+        let binary = '';
+        for (let i = 0; i < uint8Array.length; i++) binary += String.fromCharCode(uint8Array[i]);
+        socket.send(JSON.stringify({
+            realtimeInput: { mediaChunks: [{ mimeType: "audio/pcm;rate=16000", data: btoa(binary) }] }
+        }));
+    };
 }
 
 async function formatTextWithAI(text) {
@@ -205,25 +290,14 @@ ${text}`;
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: [{
-                parts: [{
-                    text: prompt
-                }]
-            }]
-        })
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
     });
 
     if (!response.ok) {
         const errData = await response.json();
-        const msg = errData.error?.message || JSON.stringify(errData);
-        throw new Error(`API 錯誤 (${response.status}): ${msg}`);
+        throw new Error(`API 錯誤 (${response.status}): ${errData.error?.message || '未知錯誤'}`);
     }
 
     const data = await response.json();
-    if (data.candidates && data.candidates[0].content.parts[0].text) {
-        return data.candidates[0].content.parts[0].text;
-    } else {
-        throw new Error('AI 回傳資料格式不正確');
-    }
+    return data.candidates[0].content.parts[0].text;
 }
