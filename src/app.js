@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.4.5 (Stack Fix)
+// Pippi Voice - Main Controller v1.4.5 (Stack Reliability Fix)
 import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -13,7 +13,7 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
-        // --- 核心歷史引擎 (命名統一) ---
+        // --- 核心歷史引擎 (確保初始化) ---
         this.undoStack = [];
         this.redoStack = [];
         this.currentValue = ''; 
@@ -49,21 +49,23 @@ class AppController {
         };
     }
 
-    // --- 歷史紀錄核心方法 ---
+    // --- 歷史紀錄核心方法 (加入安全檢查) ---
     saveState(newVal) {
-        newVal = newVal.trim();
+        if (!this.undoStack) this.undoStack = []; // 防禦性編程
+        newVal = newVal ? newVal.trim() : "";
         if (newVal === this.currentValue) return;
         
+        console.log('[History] Save State:', newVal);
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
-        this.redoStack = []; // 有新動作，清空重做
+        this.redoStack = []; 
         
         if (this.undoStack.length > 50) this.undoStack.shift();
         this.updateUndoRedoUI();
     }
 
     handleUndo() {
-        if (this.undoStack.length > 0) {
+        if (this.undoStack && this.undoStack.length > 0) {
             this.redoStack.push(this.currentValue);
             this.currentValue = this.undoStack.pop();
             this.el.output.innerText = this.currentValue;
@@ -73,7 +75,7 @@ class AppController {
     }
 
     handleRedo() {
-        if (this.redoStack.length > 0) {
+        if (this.redoStack && this.redoStack.length > 0) {
             this.undoStack.push(this.currentValue);
             this.currentValue = this.redoStack.pop();
             this.el.output.innerText = this.currentValue;

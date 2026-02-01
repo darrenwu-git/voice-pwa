@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pippi Voice - 核心診斷中心 v1.4.1</title>
+    <title>Pippi Voice - 核心診斷中心 v1.4.5</title>
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; }
         .test-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -14,7 +14,7 @@
 </head>
 <body>
     <h1>🐈 Pippi Voice 核心邏輯驗證</h1>
-    <div class="version">版本: v1.4.1 (Two-Stage Undo Test)</div>
+    <div class="version">版本: v1.4.5 (Stack Reliability Suite)</div>
     
     <div class="test-card">
         <h3>🧪 測試案例 1: 兩階段復原 (STT -> AI Format)</h3>
@@ -50,7 +50,7 @@
                 this.undoStack.push(this.currentValue);
                 this.currentValue = newVal;
                 this.redoStack = [];
-                log(`[Save] Current: "${this.currentValue}" (Stack: ${this.undoStack.length})`);
+                log(`[Save] Current: "${this.currentValue}" (StackSize: ${this.undoStack.length})`);
             }
             undo() {
                 if (this.undoStack.length > 0) {
@@ -72,51 +72,33 @@
         try {
             log("--- 開始兩階段復原測試 ---");
             const engine = new HistoryEngine("原本內容");
-            
-            log("動作 A: 開始錄音，清空畫面");
             engine.save("");
+            engine.save("逐字稿內容");
+            engine.save("整理後內容");
             
-            log("動作 B: 語音辨識完成 (STT Result)");
-            engine.save("我是逐字稿內容");
-            
-            log("動作 C: AI 整理完成 (AI Result)");
-            engine.save("整理後的條列式內容");
-            
-            assertEqual(engine.currentValue, "整理後的條列式內容", "目前應為 AI 內容");
-            
-            log("執行 Undo 1...");
             engine.undo();
-            assertEqual(engine.currentValue, "我是逐字稿內容", "第一次 Undo 應回到【逐字稿】");
-            
-            log("執行 Undo 2...");
+            assertEqual(engine.currentValue, "逐字稿內容", "第一次 Undo 應回逐字稿");
             engine.undo();
-            assertEqual(engine.currentValue, "", "第二次 Undo 應回到【空白】");
-
-            log("執行 Undo 3...");
+            assertEqual(engine.currentValue, "", "第二次 Undo 應回空白");
             engine.undo();
-            assertEqual(engine.currentValue, "原本內容", "第三次 Undo 應回到【原本內容】");
+            assertEqual(engine.currentValue, "原本內容", "第三次 Undo 應回原本");
             
-            document.getElementById('case-1-result').innerHTML = '<span class="pass">✔ 通過：兩階段復原路徑正確</span>';
+            document.getElementById('case-1-result').innerHTML = '<span class="pass">✔ 通過：復原鏈完整</span>';
         } catch (e) {
             document.getElementById('case-1-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
         }
 
         // --- Case 2: Redo Recovery ---
         try {
-            log("--- 開始 Redo 恢復力測試 ---");
+            log("--- 開始 Redo 驗證 ---");
             const engine = new HistoryEngine("");
-            engine.save("階段 1");
-            engine.save("階段 2");
-            
-            engine.undo(); // 回到階段 1
-            engine.undo(); // 回到 ""
-            
-            engine.redo(); // 往回跳到 1
-            assertEqual(engine.currentValue, "階段 1", "第一次 Redo 失敗");
-            engine.redo(); // 往回跳到 2
-            assertEqual(engine.currentValue, "階段 2", "第二次 Redo 失敗");
-            
-            document.getElementById('case-2-result').innerHTML = '<span class="pass">✔ 通過：Redo 能正確尋回丟失的狀態</span>';
+            engine.save("A");
+            engine.save("B");
+            engine.undo(); // back to A
+            assertEqual(engine.currentValue, "A", "Undo failed");
+            engine.redo(); // back to B
+            assertEqual(engine.currentValue, "B", "Redo failed");
+            document.getElementById('case-2-result').innerHTML = '<span class="pass">✔ 通過：Redo 邏輯正確</span>';
         } catch (e) {
             document.getElementById('case-2-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
         }

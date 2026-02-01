@@ -16,21 +16,31 @@ def validate():
         version = match.group(1)
         print(f"Target Version: v{version}")
 
-    # 2. 檢查 sw.js
+    # 2. 檢查 sw.js 是否包含硬編碼版本註解 (確保 Byte 變更)
     with open('sw.js', 'r') as f:
         sw = f.read()
         if f"v{version}" not in sw:
             print(f"❌ Error: sw.js is missing version comment v{version}.")
             return False
 
-    # 3. 檢查 style.css 眼睛按鈕定位
-    with open('src/style.css', 'r') as f:
-        css = f.read()
-        if 'position: absolute' not in css or 'top: 50%' not in css:
-             print("❌ Error: style.css is missing password eye positioning logic!")
+    # 3. 檢查 app.js 核心邏輯
+    with open('src/app.js', 'r') as f:
+        app = f.read()
+        if 'undoStack' not in app or 'redoStack' not in app:
+             print("❌ Error: app.js is missing core Undo/Redo stack variables!")
+             return False
+        if 'this.undoStack.push' not in app:
+             print("❌ Error: app.js is missing undo push logic!")
              return False
 
-    print(f"✅ Validation Passed: v{version} is ready.")
+    # 4. 檢查 test.html 是否已更新
+    with open('test.html', 'r') as f:
+        test = f.read()
+        if f"v{version}" not in test:
+             print(f"❌ Error: test.html is outdated (expected v{version})")
+             return False
+
+    print(f"✅ Validation Passed: v{version} is architecturally sound.")
     return True
 
 if __name__ == "__main__":

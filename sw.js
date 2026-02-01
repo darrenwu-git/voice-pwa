@@ -13,6 +13,7 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('Cleaning old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
