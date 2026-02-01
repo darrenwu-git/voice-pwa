@@ -69,20 +69,24 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
 
     recognition.onend = () => {
         if (isRecording) {
-            recognition.start(); // 自動重啟以達到不間斷錄音
+            try {
+                recognition.start();
+            } catch (e) {
+                console.log('Recognition restart attempt failed:', e);
+            }
         } else {
             statusText.innerText = '已停止';
         }
     };
 } else {
-    alert('很抱歉，您的瀏覽器不支援語音辨識功能。請嘗試使用 Android Chrome 或 iOS Safari。');
+    alert('很抱歉，您的瀏覽器不支援語音辨識功能。');
 }
 
 // UI Handlers
 settingsBtn.onclick = () => settingsModal.classList.remove('hidden');
 saveSettingsBtn.onclick = () => {
-    apiKey = apiKeyInput.value;
-    customDict = customDictInput.value;
+    apiKey = apiKeyInput.value.trim();
+    customDict = customDictInput.value.trim();
     localStorage.setItem('pippi_gemini_api_key', apiKey);
     localStorage.setItem('pippi_custom_dict', customDict);
     settingsModal.classList.add('hidden');
@@ -101,10 +105,11 @@ micBtn.onclick = () => {
 };
 
 formatBtn.onclick = async () => {
-    const text = finalOutput.innerText;
+    const text = finalOutput.innerText.trim();
     if (!text) return;
+    
     if (!apiKey) {
-        alert('請先在設定中輸入 Gemini API Key 以進行 AI 整理');
+        alert('請先在設定中輸入 Gemini API Key');
         settingsModal.classList.remove('hidden');
         return;
     }
@@ -112,21 +117,32 @@ formatBtn.onclick = async () => {
     statusText.innerText = '正在智慧整理中...';
     try {
         const formatted = await formatTextWithAI(text);
-        finalOutput.innerText = formatted;
-        finalTranscript = formatted; // 更新存檔
-        statusText.innerText = '整理完成';
+        if (formatted) {
+            finalOutput.innerText = formatted;
+            finalTranscript = formatted;
+            statusText.innerText = '整理完成';
+        }
     } catch (e) {
         statusText.innerText = '整理失敗';
-        console.error(e);
+        alert('AI 整理失敗，請檢查網路或 API Key。\n錯誤資訊: ' + e.message);
     }
 };
 
 function startRecording() {
+    // 開始新錄音時，清除舊資料
+    finalTranscript = '';
+    realtimeBuffer.innerText = '';
+    finalOutput.innerText = '';
+    
     isRecording = true;
     micBtn.classList.add('recording');
     statusDot.classList.add('active');
-    finalTranscript = finalOutput.innerText + ' ';
-    recognition.start();
+    
+    try {
+        recognition.start();
+    } catch (e) {
+        console.error('Recognition start failed:', e);
+    }
 }
 
 function stopRecording() {
@@ -138,7 +154,7 @@ function stopRecording() {
 
 async function formatTextWithAI(text) {
     const prompt = `你是一位專業的文字編輯。請將以下語音逐字稿進行修復與格式化：
-1. 自動識別並執行「更正」、「說錯了」、「不對」等口語指令。例如如果我說「想吃麵，不對，想吃麵包」，最後應輸出「想吃麵包」。
+1. 自動識別並執行「更正」、「說錯了」、「不對」等口語指令。
 2. 將內容轉化為結構化的條列式（Bullet points）。
 3. 修正錯別字並保持繁體中文。
 4. 保持中英文混用的自然度。
@@ -147,6 +163,7 @@ ${customDict ? `5. 特別注意以下專有名詞或常用詞的正確拼法：\
 內容如下：
 ${text}`;
 
+    // 使用 v1beta 版本的 API
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,6 +175,16 @@ ${text}`;
             }]
         })
     });
+
+    if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error?.message || 'API 請求失敗');
+    }
+
     const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
+    if (data.candidates && data.candidates[0].content.parts[0].text) {
+        return data.candidates[0].content.parts[0].text;
+    } else {
+        throw new Error('AI 回傳資料格式不正確');
+    }
 }
