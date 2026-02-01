@@ -184,7 +184,8 @@ ${text}`;
 
     if (!response.ok) {
         const errData = await response.json();
-        const msg = errData.error?.message || '未知錯誤';
+        const msg = errData.error?.message || JSON.stringify(errData);
+        console.error('AI Error Details:', errData);
         throw new Error(`API 錯誤 (${response.status}): ${msg}`);
     }
 
