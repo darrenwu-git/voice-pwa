@@ -1,11 +1,9 @@
-// Pippi Voice App Logic
+// Pippi Voice App Logic - Web Speech API Version
 let isRecording = false;
 let apiKey = localStorage.getItem('pippi_gemini_api_key') || '';
 let customDict = localStorage.getItem('pippi_custom_dict') || '';
-let socket = null;
-let audioContext = null;
-let processor = null;
-let stream = null;
+let recognition = null;
+let finalTranscript = '';
 
 // DOM Elements
 const micBtn = document.getElementById('mic-btn');
@@ -21,7 +19,7 @@ const copyBtn = document.getElementById('copy-btn');
 const realtimeBuffer = document.getElementById('realtime-buffer');
 const finalOutput = document.getElementById('final-output');
 
-// Initialize
+// Initialize UI
 if (apiKey) apiKeyInput.value = apiKey;
 if (customDict) customDictInput.value = customDict;
 
@@ -37,6 +35,48 @@ togglePasswordBtn.onclick = () => {
 };
 
 if (!apiKey) settingsModal.classList.remove('hidden');
+
+// Initialize Web Speech API
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'zh-TW';
+
+    recognition.onstart = () => {
+        statusText.innerText = '正在聆聽中... (請說話)';
+    };
+
+    recognition.onresult = (event) => {
+        let interimTranscript = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+            if (event.results[i].isFinal) {
+                finalTranscript += event.results[i][0].transcript + ' ';
+            } else {
+                interimTranscript += event.results[i][0].transcript;
+            }
+        }
+        realtimeBuffer.innerText = interimTranscript;
+        finalOutput.innerText = finalTranscript + interimTranscript;
+    };
+
+    recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        statusText.innerText = '辨識發生錯誤: ' + event.error;
+        stopRecording();
+    };
+
+    recognition.onend = () => {
+        if (isRecording) {
+            recognition.start(); // 自動重啟以達到不間斷錄音
+        } else {
+            statusText.innerText = '已停止';
+        }
+    };
+} else {
+    alert('很抱歉，您的瀏覽器不支援語音辨識功能。請嘗試使用 Android Chrome 或 iOS Safari。');
+}
 
 // UI Handlers
 settingsBtn.onclick = () => settingsModal.classList.remove('hidden');
@@ -56,11 +96,6 @@ copyBtn.onclick = () => {
 };
 
 micBtn.onclick = () => {
-    if (!apiKey) {
-        alert('請先設定 API Key');
-        settingsModal.classList.remove('hidden');
-        return;
-    }
     if (!isRecording) startRecording();
     else stopRecording();
 };
@@ -68,10 +103,17 @@ micBtn.onclick = () => {
 formatBtn.onclick = async () => {
     const text = finalOutput.innerText;
     if (!text) return;
+    if (!apiKey) {
+        alert('請先在設定中輸入 Gemini API Key 以進行 AI 整理');
+        settingsModal.classList.remove('hidden');
+        return;
+    }
+    
     statusText.innerText = '正在智慧整理中...';
     try {
         const formatted = await formatTextWithAI(text);
         finalOutput.innerText = formatted;
+        finalTranscript = formatted; // 更新存檔
         statusText.innerText = '整理完成';
     } catch (e) {
         statusText.innerText = '整理失敗';
@@ -79,143 +121,24 @@ formatBtn.onclick = async () => {
     }
 };
 
-async function startRecording() {
-    try {
-        statusText.innerText = '正在請求麥克風權限...';
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        isRecording = true;
-        micBtn.classList.add('recording');
-        statusDot.classList.add('active');
-        statusText.innerText = '正在連線至 Gemini Live...';
-
-        const model = "gemini-2.0-flash-exp";
-        const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenericService.BidiGenerateContent?key=${apiKey}`;
-        
-        socket = new WebSocket(url);
-
-        socket.onopen = () => {
-            statusText.innerText = '連線成功，發送初始化設定...';
-            const setup = {
-                setup: { 
-                    model: `models/${model}`,
-                    generation_config: { response_modalities: ["TEXT"] }
-                }
-            };
-            socket.send(JSON.stringify(setup));
-            setupAudioProcessor();
-        };
-
-        socket.onmessage = async (event) => {
-            const response = JSON.parse(event.data);
-            
-            // 處理即時回傳的文字
-            if (response.serverContent?.modelTurn?.parts) {
-                const parts = response.serverContent.modelTurn.parts;
-                const text = parts.map(p => p.text).filter(t => t).join('');
-                if (text) {
-                    realtimeBuffer.innerText = text;
-                    finalOutput.innerText += text;
-                }
-            }
-            
-            // 如果連線剛建立成功
-            if (response.setupComplete) {
-                statusText.innerText = '準備就緒，請開始說話';
-            }
-        };
-
-        socket.onerror = (e) => {
-            console.error('WebSocket Error:', e);
-            alert('WebSocket 連線失敗，請檢查 API Key 是否正確。');
-            stopRecording();
-        };
-
-        socket.onclose = (e) => {
-            if (isRecording) {
-                console.log('WebSocket Closed:', e);
-                if (e.code === 1006) {
-                    alert('連線被異常關閉。可能是 API Key 不支援 Gemini 2.0 Live，或網路受阻。');
-                }
-                stopRecording();
-            }
-        };
-
-    } catch (err) {
-        console.error('錄音失敗:', err);
-        alert('錄音失敗：' + err.message);
-        stopRecording();
-    }
-}
-
-function setupAudioProcessor() {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-    const source = audioContext.createMediaStreamSource(stream);
-    
-    // 使用 ScriptProcessor (雖然已棄用但相容性最高)
-    processor = audioContext.createScriptProcessor(4096, 1, 1);
-
-    source.connect(processor);
-    processor.connect(audioContext.destination);
-
-    processor.onaudioprocess = (e) => {
-        if (!isRecording || !socket || socket.readyState !== WebSocket.OPEN) return;
-        
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcmData = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-            // 將浮點數轉為 16-bit PCM
-            const s = Math.max(-1, Math.min(1, inputData[i]));
-            pcmData[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
-        }
-        
-        // 轉為 Base64
-        const uint8Array = new Uint8Array(pcmData.buffer);
-        let binary = '';
-        for (let i = 0; i < uint8Array.length; i++) {
-            binary += String.fromCharCode(uint8Array[i]);
-        }
-        const base64Data = btoa(binary);
-
-        socket.send(JSON.stringify({
-            realtimeInput: {
-                mediaChunks: [{
-                    mimeType: "audio/pcm;rate=16000",
-                    data: base64Data
-                }]
-            }
-        }));
-    };
+function startRecording() {
+    isRecording = true;
+    micBtn.classList.add('recording');
+    statusDot.classList.add('active');
+    finalTranscript = finalOutput.innerText + ' ';
+    recognition.start();
 }
 
 function stopRecording() {
     isRecording = false;
     micBtn.classList.remove('recording');
     statusDot.classList.remove('active');
-    statusText.innerText = '已停止';
-
-    if (processor) {
-        processor.disconnect();
-        processor = null;
-    }
-    if (audioContext) {
-        audioContext.close();
-        audioContext = null;
-    }
-    if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        stream = null;
-    }
-    if (socket) {
-        if (socket.readyState === WebSocket.OPEN) {
-            socket.close();
-        }
-        socket = null;
-    }
+    recognition.stop();
 }
 
 async function formatTextWithAI(text) {
     const prompt = `你是一位專業的文字編輯。請將以下語音逐字稿進行修復與格式化：
-1. 自動識別並執行「更正」、「說錯了」等指令。
+1. 自動識別並執行「更正」、「說錯了」、「不對」等口語指令。例如如果我說「想吃麵，不對，想吃麵包」，最後應輸出「想吃麵包」。
 2. 將內容轉化為結構化的條列式（Bullet points）。
 3. 修正錯別字並保持繁體中文。
 4. 保持中英文混用的自然度。
