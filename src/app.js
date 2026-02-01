@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.1.7
+// Pippi Voice - Main Controller v1.1.8 (Automation Update)
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -53,14 +53,18 @@ class AppController {
         this.bus.on(Events.STT_ERROR, (err) => {
             const msg = ErrorMessages[err.code] || err.message;
             alert('語音錯誤: ' + msg);
-            this.stopRecording();
+            this.stopRecording(false); // Stop without auto-format
         });
 
         this.bus.on(Events.AI_START, () => this.el.statusText.innerText = '正在智慧整理中...');
+        
         this.bus.on(Events.AI_SUCCESS, (res) => {
             this.el.output.innerText = res;
             this.el.statusText.innerText = '整理完成';
+            // 自動複製
+            this.handleCopy(true); 
         });
+
         this.bus.on(Events.AI_ERROR, (err) => {
             alert('AI 錯誤: ' + err.message);
             this.el.statusText.innerText = '整理失敗';
@@ -73,14 +77,18 @@ class AppController {
             this.el.micBtn.classList.add('recording');
             this.el.micBtn.innerText = '🛑 停止錄音';
         } else {
-            this.stopRecording();
+            this.stopRecording(true); // Stop and trigger auto-format
         }
     }
 
-    stopRecording() {
+    async stopRecording(triggerFormat = false) {
         this.speech.stop();
         this.el.micBtn.classList.remove('recording');
         this.el.micBtn.innerText = '🎤 開始錄音';
+        
+        if (triggerFormat && this.el.output.innerText.trim()) {
+            await this.handleFormat();
+        }
     }
 
     async handleFormat() {
@@ -98,9 +106,19 @@ class AppController {
         }
     }
 
-    handleCopy() {
-        navigator.clipboard.writeText(this.el.output.innerText);
-        alert('已複製到剪貼簿');
+    handleCopy(silent = false) {
+        const text = this.el.output.innerText;
+        if (!text) return;
+        
+        navigator.clipboard.writeText(text).then(() => {
+            if (!silent) {
+                alert('已複製到剪貼簿');
+            } else {
+                this.el.statusText.innerText = '✅ 整理完成並已自動複製';
+            }
+        }).catch(err => {
+            console.error('Copy failed', err);
+        });
     }
 
     saveSettings() {

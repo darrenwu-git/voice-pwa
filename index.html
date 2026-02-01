@@ -3,12 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pippi Voice v1.1.7</title>
+    <title>Pippi Voice v1.1.8</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="stylesheet" href="src/style.css?v=1.1.7">
+    <link rel="stylesheet" href="src/style.css?v=1.1.8">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js?v=1.1.7');
+            navigator.serviceWorker.register('./sw.js?v=1.1.8').then(reg => {
+                reg.onupdatefound = () => {
+                    const installingWorker = reg.installing;
+                    installingWorker.onstatechange = () => {
+                        if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            if (confirm('發現新版本 v1.1.8！是否立即更新以啟用自動整理與複製功能？')) {
+                                window.location.reload();
+                            }
+                        }
+                    };
+                };
+            });
         }
     </script>
 </head>
@@ -19,7 +30,7 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon" style="width:24px; height:24px; border-radius:50%">
                 <div>
                     <h1 style="font-size:1rem; margin:0">Pippi Voice</h1>
-                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.1.7 (Enterprise Core)</small>
+                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.1.8 (Auto Workflow)</small>
                 </div>
             </div>
             <button id="settings-btn" style="background:none; border:none; font-size:1.2rem">⚙️</button>
@@ -73,6 +84,6 @@
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.1.7" type="module"></script>
+    <script src="src/app.js?v=1.1.8" type="module"></script>
 </body>
 </html>
