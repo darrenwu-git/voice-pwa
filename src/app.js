@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.2.4 (State Machine Edition)
+// Pippi Voice - Main Controller v1.3.0 (Two-Stage AI Model)
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -16,7 +16,7 @@ class AppController {
         this.bindEvents();
         this.loadSettings();
         
-        console.log('Pippi Voice State Machine Initialized v1.2.4');
+        console.log('Pippi Voice v1.3.0 Initialized');
     }
 
     setupDOM() {
@@ -32,14 +32,14 @@ class AppController {
             saveSettings: document.getElementById('save-settings'),
             apiKey: document.getElementById('api-key'),
             sttSelect: document.getElementById('stt-select'),
-            modelSelect: document.getElementById('model-select'),
+            sttModelSelect: document.getElementById('stt-model-select'), // 新增
+            formatModelSelect: document.getElementById('format-model-select'), // 新增
             customDict: document.getElementById('custom-dict'),
             checkUpdateBtn: document.getElementById('check-update-btn')
         };
     }
 
     bindEvents() {
-        // UI Interaction
         this.el.micBtn.onclick = () => this.handleMicClick();
         this.el.formatBtn.onclick = () => this.fsm.transition(AppState.FORMATTING);
         this.el.copyBtn.onclick = () => this.handleCopy();
@@ -50,27 +50,17 @@ class AppController {
             this.el.checkUpdateBtn.onclick = () => window.location.reload();
         }
 
-        // Domain Events
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
             this.el.output.innerText = (final + interim).trim();
             this.el.output.scrollTop = this.el.output.scrollHeight;
         });
 
         this.bus.on(Events.STT_STATUS, (txt) => {
-            if (this.fsm.is(AppState.RECORDING)) {
-                this.el.statusText.innerText = txt;
-            }
+            if (this.fsm.is(AppState.RECORDING)) this.el.statusText.innerText = txt;
         });
 
         this.bus.on(Events.STT_ERROR, (err) => {
             this.fsm.transition(AppState.ERROR, { message: ErrorMessages[err.code] || err.message });
-        });
-
-        this.bus.on(Events.STT_STOPPED, () => {
-            // 如果是在錄音狀態下突然停止（非我們主動切換狀態），則跳回 IDLE
-            if (this.fsm.is(AppState.RECORDING)) {
-                this.fsm.transition(AppState.IDLE);
-            }
         });
 
         this.bus.on(Events.AI_SUCCESS, (res) => {
@@ -83,11 +73,8 @@ class AppController {
         });
     }
 
-    handleStateChange(state, data) {
-        // Reset UI Elements
+    async handleStateChange(state, data) {
         this.el.micBtn.disabled = false;
-        this.el.formatBtn.disabled = false;
-        this.el.copyBtn.disabled = false;
         this.el.micBtn.classList.remove('recording');
         this.el.statusDot.style.background = '#ccc';
 
@@ -101,19 +88,34 @@ class AppController {
                 this.el.micBtn.innerText = '🛑 停止錄音';
                 this.el.micBtn.classList.add('recording');
                 this.el.statusDot.style.background = '#4CAF50';
-                this.speech.start(this.el.sttSelect.value, this.el.apiKey.value.trim());
+                this.speech.start(this.el.sttSelect.value, { apiKey: this.el.apiKey.value.trim() });
+                break;
+
+            case AppState.STT_PROCESSING:
+                this.el.statusText.innerText = '正在上傳並辨識語音中...';
+                this.el.micBtn.disabled = true;
+                const audioBlob = data.blob;
+                try {
+                    const transcript = await this.ai.transcribeAudio(audioBlob, {
+                        apiKey: this.el.apiKey.value.trim(),
+                        model: this.el.sttModelSelect.value
+                    });
+                    this.el.output.innerText = transcript;
+                    // 自動進入整理階段
+                    this.fsm.transition(AppState.FORMATTING);
+                } catch (e) {
+                    this.fsm.transition(AppState.ERROR, { message: '語音辨識失敗: ' + e.message });
+                }
                 break;
 
             case AppState.FORMATTING:
-                this.el.micBtn.disabled = true;
-                this.el.formatBtn.disabled = true;
                 this.el.statusText.innerText = '正在智慧整理中...';
-                this.speech.stop();
+                this.el.micBtn.disabled = true;
                 this.triggerAIFormat();
                 break;
 
             case AppState.SUCCESS:
-                this.el.statusText.innerText = '✅ 整理完成並已自動複製';
+                this.el.statusText.innerText = '✅ 已自動完成複製';
                 this.handleCopy(true);
                 setTimeout(() => this.fsm.transition(AppState.IDLE), 3000);
                 break;
@@ -122,17 +124,26 @@ class AppController {
                 this.el.micBtn.innerText = '🎤 重新錄音';
                 this.el.statusText.innerText = data.message || '發生錯誤';
                 this.el.statusDot.style.background = '#f44336';
-                this.speech.stop();
                 break;
         }
     }
 
-    handleMicClick() {
-        if (this.fsm.is(AppState.IDLE) || this.fsm.is(AppState.ERROR) || this.fsm.is(AppState.SUCCESS)) {
+    async handleMicClick() {
+        if (!this.fsm.is(AppState.RECORDING)) {
+            const apiKey = this.el.apiKey.value.trim();
+            if (!apiKey && this.el.sttSelect.value !== 'web-speech') {
+                alert('使用此模式必須先設定 API Key');
+                this.el.settingsModal.classList.remove('hidden');
+                return;
+            }
             this.fsm.transition(AppState.RECORDING);
-        } else if (this.fsm.is(AppState.RECORDING)) {
-            // 按下停止錄音，進入自動化流程
-            this.fsm.transition(AppState.FORMATTING);
+        } else {
+            const audioBlob = await this.speech.stop();
+            if (this.el.sttSelect.value === 'gemini-file' && audioBlob) {
+                this.fsm.transition(AppState.STT_PROCESSING, { blob: audioBlob });
+            } else {
+                this.fsm.transition(AppState.FORMATTING);
+            }
         }
     }
 
@@ -142,16 +153,11 @@ class AppController {
             this.fsm.transition(AppState.IDLE);
             return;
         }
-        
-        try {
-            await this.ai.formatText(text, {
-                apiKey: this.el.apiKey.value.trim(),
-                model: this.el.modelSelect.value,
-                customDict: this.el.customDict.value.trim()
-            });
-        } catch (e) {
-            // Error already handled by event bus
-        }
+        await this.ai.formatText(text, {
+            apiKey: this.el.apiKey.value.trim(),
+            model: this.el.formatModelSelect.value,
+            customDict: this.el.customDict.value.trim()
+        });
     }
 
     handleCopy(silent = false) {
@@ -165,7 +171,8 @@ class AppController {
     saveSettings() {
         localStorage.setItem('pippi_gemini_api_key', this.el.apiKey.value.trim());
         localStorage.setItem('pippi_selected_stt', this.el.sttSelect.value);
-        localStorage.setItem('pippi_selected_model', this.el.modelSelect.value);
+        localStorage.setItem('pippi_selected_stt_model', this.el.sttModelSelect.value);
+        localStorage.setItem('pippi_selected_format_model', this.el.formatModelSelect.value);
         localStorage.setItem('pippi_custom_dict', this.el.customDict.value.trim());
         this.el.settingsModal.classList.add('hidden');
         this.bus.emit(Events.SETTINGS_CHANGED);
@@ -174,7 +181,8 @@ class AppController {
     loadSettings() {
         this.el.apiKey.value = localStorage.getItem('pippi_gemini_api_key') || '';
         this.el.sttSelect.value = localStorage.getItem('pippi_selected_stt') || 'web-speech';
-        this.el.modelSelect.value = localStorage.getItem('pippi_selected_model') || 'gemini-2.5-flash';
+        this.el.sttModelSelect.value = localStorage.getItem('pippi_selected_stt_model') || 'gemini-1.5-flash';
+        this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
     }
 }

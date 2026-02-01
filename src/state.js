@@ -1,8 +1,9 @@
-// Pippi Voice - State Definitions v1.2.4
+// Pippi Voice - State Definitions v1.3.0
 export const AppState = {
     IDLE: 'IDLE',
     RECORDING: 'RECORDING',
-    FORMATTING: 'FORMATTING',
+    STT_PROCESSING: 'STT_PROCESSING', // 新增：音訊檔案辨識中
+    FORMATTING: 'FORMATTING',       // 智慧整理中
     SUCCESS: 'SUCCESS',
     ERROR: 'ERROR'
 };
