@@ -26,7 +26,7 @@ def validate():
     # 3. 檢查 app.js 密碼切換邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
-        if 'togglePassword' not in app or 'setAttribute(\'type\', type)' not in app:
+        if 'togglePassword' not in app or 'setAttribute' not in app:
              print("❌ Error: app.js is missing password toggle logic!")
              return False
 

@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.4.2 (UI Polished)
+// Pippi Voice - Main Controller v1.4.3 (Toggle Fix)
 import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -39,7 +39,7 @@ class AppController {
             settingsModal: document.getElementById('settings-modal'),
             saveSettings: document.getElementById('save-settings'),
             apiKey: document.getElementById('api-key'),
-            togglePassword: document.getElementById('toggle-password'), // 新增
+            togglePassword: document.getElementById('toggle-password'),
             sttSelect: document.getElementById('stt-select'),
             sttModelSelect: document.getElementById('stt-model-select'),
             formatModelSelect: document.getElementById('format-model-select'),
@@ -51,11 +51,9 @@ class AppController {
     saveState(newVal) {
         newVal = newVal.trim();
         if (newVal === this.currentValue) return;
-        
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
         this.redoStack = [];
-        
         if (this.undoStack.length > 50) this.undoStack.shift();
         this.updateUndoRedoUI();
     }
@@ -81,8 +79,8 @@ class AppController {
     }
 
     updateUndoRedoUI() {
-        this.el.undoBtn.disabled = this.undoStack.length === 0;
-        this.el.undoBtn.style.opacity = this.undoStack.length === 0 ? '0.3' : '1';
+        this.el.undoBtn.disabled = this.historyStack.length === 0;
+        this.el.undoBtn.style.opacity = this.historyStack.length === 0 ? '0.3' : '1';
         this.el.redoBtn.disabled = this.redoStack.length === 0;
         this.el.redoBtn.style.opacity = this.redoStack.length === 0 ? '0.3' : '1';
     }
@@ -102,12 +100,14 @@ class AppController {
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
         
-        // 密碼眼睛切換邏輯
+        // 修正切換邏輯：明確更新 type 屬性並記錄
         if (this.el.togglePassword) {
             this.el.togglePassword.onclick = () => {
-                const type = this.el.apiKey.getAttribute('type') === 'password' ? 'text' : 'password';
-                this.el.apiKey.setAttribute('type', type);
-                this.el.togglePassword.innerText = type === 'password' ? '👁️' : '🙈';
+                const currentType = this.el.apiKey.getAttribute('type');
+                const newType = currentType === 'password' ? 'text' : 'password';
+                this.el.apiKey.setAttribute('type', newType);
+                this.el.togglePassword.innerText = newType === 'password' ? '👁️' : '🙈';
+                console.log(`Password toggle: ${currentType} -> ${newType}`);
             };
         }
 
@@ -150,6 +150,7 @@ class AppController {
             case AppState.IDLE:
                 this.el.micBtn.innerText = '🎤 開始錄音';
                 this.el.statusText.innerText = '準備就緒';
+                this.ai.abort();
                 break;
 
             case AppState.RECORDING:
