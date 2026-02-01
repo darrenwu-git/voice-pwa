@@ -2,6 +2,7 @@
 let isRecording = false;
 let apiKey = localStorage.getItem('pippi_gemini_api_key') || '';
 let customDict = localStorage.getItem('pippi_custom_dict') || '';
+let selectedModel = localStorage.getItem('pippi_selected_model') || 'gemini-1.5-flash';
 let recognition = null;
 let finalTranscript = '';
 
@@ -14,6 +15,7 @@ const settingsModal = document.getElementById('settings-modal');
 const saveSettingsBtn = document.getElementById('save-settings');
 const apiKeyInput = document.getElementById('api-key');
 const customDictInput = document.getElementById('custom-dict');
+const modelSelect = document.getElementById('model-select');
 const formatBtn = document.getElementById('format-btn');
 const copyBtn = document.getElementById('copy-btn');
 const realtimeBuffer = document.getElementById('realtime-buffer');
@@ -22,6 +24,7 @@ const finalOutput = document.getElementById('final-output');
 // Initialize UI
 if (apiKey) apiKeyInput.value = apiKey;
 if (customDict) customDictInput.value = customDict;
+if (selectedModel) modelSelect.value = selectedModel;
 
 const togglePasswordBtn = document.createElement('button');
 togglePasswordBtn.innerText = '👁️';
@@ -87,10 +90,12 @@ settingsBtn.onclick = () => settingsModal.classList.remove('hidden');
 saveSettingsBtn.onclick = () => {
     apiKey = apiKeyInput.value.trim();
     customDict = customDictInput.value.trim();
+    selectedModel = modelSelect.value;
     localStorage.setItem('pippi_gemini_api_key', apiKey);
     localStorage.setItem('pippi_custom_dict', customDict);
+    localStorage.setItem('pippi_selected_model', selectedModel);
     settingsModal.classList.add('hidden');
-    console.log('Settings saved. Key length:', apiKey.length);
+    console.log('Settings saved. Key length:', apiKey.length, 'Model:', selectedModel);
 };
 
 copyBtn.onclick = () => {
@@ -154,6 +159,7 @@ function stopRecording() {
 }
 
 async function formatTextWithAI(text) {
+    const model = document.getElementById('model-select').value;
     const prompt = `你是一位專業的文字編輯。請將以下語音逐字稿進行修復與格式化：
 1. 自動識別並執行「更正」、「說錯了」、「不對」等口語指令。
 2. 將內容轉化為結構化的條列式（Bullet points）。
@@ -164,8 +170,7 @@ ${customDict ? `5. 特別注意以下專有名詞或常用詞的正確拼法：\
 內容如下：
 ${text}`;
 
-    // 使用 v1beta 版本的 API
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -179,7 +184,8 @@ ${text}`;
 
     if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.error?.message || 'API 請求失敗');
+        const msg = errData.error?.message || '未知錯誤';
+        throw new Error(`API 錯誤 (${response.status}): ${msg}`);
     }
 
     const data = await response.json();
