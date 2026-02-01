@@ -17,17 +17,24 @@
         });
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register(`./sw.js?v=${VERSION}`, { type: 'module' }).then(reg => {
+            // 每次註冊時強制檢查伺服器端
+            navigator.serviceWorker.register(`./sw.js?v=${VERSION}`, { type: 'module', updateViaCache: 'none' }).then(reg => {
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm(`發現新版本 v${VERSION}！是否立即更新以修復版面問題？`)) {
-                                window.location.reload();
+                            if (confirm(`發現最新版本 v${VERSION}！是否立即重新載入以修復升級失敗問題？`)) {
+                                window.location.reload(true);
                             }
                         }
                     };
                 };
+            });
+
+            // 監聽 controllerchange 實現無縫重載
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                console.log('[PWA] Controller changed, reloading...');
+                window.location.reload();
             });
         }
     </script>
@@ -67,7 +74,7 @@
 
         <!-- Settings Modal -->
         <div id="settings-modal" class="modal hidden">
-            <div class="modal-content">
+            <div class="modal-content" style="overflow-y:auto; max-height:90vh">
                 <h2 style="margin-top:0">App 設定</h2>
                 <div class="input-group">
                     <label>Gemini API Key:</label>
@@ -111,8 +118,8 @@
                 </div>
                 
                 <div class="version-info">
-                    <button id="check-update-btn" class="secondary-btn">檢查並下載更新</button>
-                    <button id="hard-reset-btn" class="danger-btn">強制重置並清除所有快取</button>
+                    <button id="check-update-btn" class="secondary-btn">強制檢查並更新</button>
+                    <button id="hard-reset-btn" class="danger-btn">⚠️ 重置 App 並清除所有快取</button>
                 </div>
                 <button id="save-settings" class="primary-btn" style="margin-top:10px">儲存並關閉</button>
             </div>

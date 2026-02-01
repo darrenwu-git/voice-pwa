@@ -1,6 +1,6 @@
-// Pippi Voice - Version Configuration v1.4.7
-export const VERSION = '1.4.7';
-export const VERSION_TAG = 'Layout & Icon Fix';
+// Pippi Voice - Version Configuration v1.4.8
+export const VERSION = '1.4.8';
+export const VERSION_TAG = 'Aggressive Update Fix';
 export const CACHE_NAME = `pippi-voice-v${VERSION}`;
 
 export const ASSETS = [
