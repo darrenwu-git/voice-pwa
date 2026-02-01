@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Pippi Voice - 智慧語音輸入</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2196F3">
+    <link rel="stylesheet" href="src/style.css">
+    <link rel="apple-touch-icon" href="public/icons/icon-192x192.png">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>🐈 Pippi Voice</h1>
+            <button id="settings-btn" class="icon-btn">⚙️</button>
+        </header>
+
+        <main>
+            <div id="status-bar">
+                <span id="connection-status" class="status-dot"></span>
+                <span id="status-text">準備就緒</span>
+            </div>
+
+            <div class="display-container">
+                <div id="realtime-buffer" class="buffer-text" placeholder="即時語音辨識中..."></div>
+                <div id="final-output" class="output-text" contenteditable="true" placeholder="格式化後的內容將顯示在這裡..."></div>
+            </div>
+
+            <div class="controls">
+                <button id="mic-btn" class="mic-btn">
+                    <span class="mic-icon">🎤</span>
+                </button>
+                <button id="format-btn" class="action-btn">✨ 自動整理</button>
+                <button id="copy-btn" class="action-btn">📋 複製內容</button>
+            </div>
+        </main>
+
+        <!-- 設定彈窗 -->
+        <div id="settings-modal" class="modal hidden">
+            <div class="modal-content">
+                <h2>設定</h2>
+                <div class="input-group">
+                    <label for="api-key">Gemini API Key:</label>
+                    <input type="password" id="api-key" placeholder="輸入您的 API Key">
+                </div>
+                <div class="input-group">
+                    <label for="model-select">模型選擇:</label>
+                    <select id="model-select">
+                        <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash (Live)</option>
+                        <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="custom-dict">自定義詞庫 (每行一個):</label>
+                    <textarea id="custom-dict" placeholder="例如：
+OpenClaw
+Pippi
+Darren Wu" rows="4"></textarea>
+                </div>
+                <button id="save-settings" class="primary-btn">儲存並關閉</button>
+            </div>
+        </div>
+    </div>
+    <script src="src/app.js" type="module"></script>
+</body>
+</html>
