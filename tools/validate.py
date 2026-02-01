@@ -29,9 +29,9 @@ def validate():
     # 3. 檢查 app.js
     with open('src/app.js', 'r') as f:
         content = f.read()
-        # 檢查是否有自動化邏輯關鍵字
-        if "handleFormat()" not in content or "triggerFormat" not in content:
-            print("❌ Error: app.js seems to be missing core automation logic!")
+        # 檢查是否有核心狀態機邏輯關鍵字
+        if "fsm" not in content or "handleStateChange" not in content:
+            print("❌ Error: app.js seems to be missing State Machine logic!")
             return False
 
     print("✅ All systems GO! Pippi is ready to push.")

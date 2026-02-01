@@ -1,7 +1,8 @@
-// Pippi Voice - Main Controller v1.2.2
+// Pippi Voice - Main Controller v1.2.4 (State Machine Edition)
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
+import { AppState, StateMachine } from './state.js';
 import { ErrorMessages } from './errors.js';
 
 class AppController {
@@ -9,11 +10,13 @@ class AppController {
         this.bus = new EventBus();
         this.speech = new SpeechManager(this.bus);
         this.ai = new AIManager(this.bus);
+        this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
         this.setupDOM();
         this.bindEvents();
         this.loadSettings();
-        console.log('Pippi Voice Controller Initialized v1.2.2');
+        
+        console.log('Pippi Voice State Machine Initialized v1.2.4');
     }
 
     setupDOM() {
@@ -23,6 +26,7 @@ class AppController {
             copyBtn: document.getElementById('copy-btn'),
             output: document.getElementById('final-output'),
             statusText: document.getElementById('status-text'),
+            statusDot: document.querySelector('.status-dot'),
             settingsBtn: document.getElementById('settings-btn'),
             settingsModal: document.getElementById('settings-modal'),
             saveSettings: document.getElementById('save-settings'),
@@ -35,139 +39,119 @@ class AppController {
     }
 
     bindEvents() {
-        // UI Interactions
-        this.el.micBtn.onclick = () => this.toggleRecording();
-        this.el.formatBtn.onclick = () => this.handleManualFormat();
+        // UI Interaction
+        this.el.micBtn.onclick = () => this.handleMicClick();
+        this.el.formatBtn.onclick = () => this.fsm.transition(AppState.FORMATTING);
         this.el.copyBtn.onclick = () => this.handleCopy();
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
         
         if (this.el.checkUpdateBtn) {
-            this.el.checkUpdateBtn.onclick = () => {
-                this.el.statusText.innerText = '正在檢查更新...';
-                if ('serviceWorker' in navigator) {
-                    navigator.serviceWorker.getRegistration().then(reg => {
-                        if (reg) {
-                            reg.update().then(() => {
-                                alert('檢查指令已發送！請稍後重啟 App。');
-                                window.location.reload();
-                            });
-                        } else {
-                            window.location.reload();
-                        }
-                    });
-                } else {
-                    window.location.reload();
-                }
-            };
+            this.el.checkUpdateBtn.onclick = () => window.location.reload();
         }
 
-        // App Events
+        // Domain Events
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
             this.el.output.innerText = (final + interim).trim();
             this.el.output.scrollTop = this.el.output.scrollHeight;
         });
 
         this.bus.on(Events.STT_STATUS, (txt) => {
-            // 防止狀態訊息覆蓋整理中的狀態
-            if (this.el.statusText.innerText.includes('整理中')) return;
-            this.el.statusText.innerText = txt;
+            if (this.fsm.is(AppState.RECORDING)) {
+                this.el.statusText.innerText = txt;
+            }
         });
 
         this.bus.on(Events.STT_ERROR, (err) => {
-            const msg = ErrorMessages[err.code] || err.message;
-            alert('語音錯誤: ' + msg);
-            this.stopRecording(false);
+            this.fsm.transition(AppState.ERROR, { message: ErrorMessages[err.code] || err.message });
         });
 
-        this.bus.on(Events.AI_START, () => {
-            this.el.statusText.innerText = '正在智慧整理中...';
-            this.el.formatBtn.disabled = true;
-        });
-        
         this.bus.on(Events.AI_SUCCESS, (res) => {
             this.el.output.innerText = res;
-            this.el.statusText.innerText = '✅ 整理完成並已自動複製';
-            this.el.formatBtn.disabled = false;
-            this.handleCopy(true); 
-            
-            setTimeout(() => {
-                if (this.el.statusText.innerText.includes('自動複製')) {
-                    this.el.statusText.innerText = '準備就緒';
-                }
-            }, 3000);
+            this.fsm.transition(AppState.SUCCESS);
         });
 
         this.bus.on(Events.AI_ERROR, (err) => {
-            alert('AI 錯誤: ' + err.message);
-            this.el.statusText.innerText = '整理失敗';
-            this.el.formatBtn.disabled = false;
+            this.fsm.transition(AppState.ERROR, { message: 'AI 錯誤: ' + err.message });
         });
     }
 
-    toggleRecording() {
-        if (!this.speech.isRecording) {
-            const apiKey = this.el.apiKey.value.trim();
-            if (!apiKey && this.el.sttSelect.value === 'gemini-live') {
-                alert('使用 Gemini Live 必須先設定 API Key');
-                this.el.settingsModal.classList.remove('hidden');
-                return;
-            }
-            this.speech.start(this.el.sttSelect.value, apiKey);
-            this.el.micBtn.classList.add('recording');
-            this.el.micBtn.innerText = '🛑 停止錄音';
-        } else {
-            this.stopRecording(true); 
-        }
-    }
-
-    async stopRecording(triggerFormat = false) {
-        this.speech.stop();
+    handleStateChange(state, data) {
+        // Reset UI Elements
+        this.el.micBtn.disabled = false;
+        this.el.formatBtn.disabled = false;
+        this.el.copyBtn.disabled = false;
         this.el.micBtn.classList.remove('recording');
-        this.el.micBtn.innerText = '🎤 開始錄音';
-        
-        if (triggerFormat) {
-            const text = this.el.output.innerText.trim();
-            if (text) {
-                console.log('Automated Format Triggered');
-                await this.handleFormat();
-            }
+        this.el.statusDot.style.background = '#ccc';
+
+        switch (state) {
+            case AppState.IDLE:
+                this.el.micBtn.innerText = '🎤 開始錄音';
+                this.el.statusText.innerText = '準備就緒';
+                break;
+
+            case AppState.RECORDING:
+                this.el.micBtn.innerText = '🛑 停止錄音';
+                this.el.micBtn.classList.add('recording');
+                this.el.statusDot.style.background = '#4CAF50';
+                this.speech.start(this.el.sttSelect.value, this.el.apiKey.value.trim());
+                break;
+
+            case AppState.FORMATTING:
+                this.el.micBtn.disabled = true;
+                this.el.formatBtn.disabled = true;
+                this.el.statusText.innerText = '正在智慧整理中...';
+                this.speech.stop();
+                this.triggerAIFormat();
+                break;
+
+            case AppState.SUCCESS:
+                this.el.statusText.innerText = '✅ 整理完成並已自動複製';
+                this.handleCopy(true);
+                setTimeout(() => this.fsm.transition(AppState.IDLE), 3000);
+                break;
+
+            case AppState.ERROR:
+                this.el.micBtn.innerText = '🎤 重新錄音';
+                this.el.statusText.innerText = data.message || '發生錯誤';
+                this.el.statusDot.style.background = '#f44336';
+                this.speech.stop();
+                break;
         }
     }
 
-    async handleManualFormat() {
-        const text = this.el.output.innerText.trim();
-        if (!text) return;
-        await this.handleFormat();
+    handleMicClick() {
+        if (this.fsm.is(AppState.IDLE) || this.fsm.is(AppState.ERROR) || this.fsm.is(AppState.SUCCESS)) {
+            this.fsm.transition(AppState.RECORDING);
+        } else if (this.fsm.is(AppState.RECORDING)) {
+            // 按下停止錄音，進入自動化流程
+            this.fsm.transition(AppState.FORMATTING);
+        }
     }
 
-    async handleFormat() {
+    async triggerAIFormat() {
+        const text = this.el.output.innerText.trim();
+        if (!text) {
+            this.fsm.transition(AppState.IDLE);
+            return;
+        }
+        
         try {
-            const apiKey = this.el.apiKey.value.trim();
-            if (!apiKey) {
-                alert('請先在設定中輸入 API Key');
-                this.el.settingsModal.classList.remove('hidden');
-                return;
-            }
-
-            await this.ai.formatText(this.el.output.innerText, {
-                apiKey: apiKey,
+            await this.ai.formatText(text, {
+                apiKey: this.el.apiKey.value.trim(),
                 model: this.el.modelSelect.value,
                 customDict: this.el.customDict.value.trim()
             });
         } catch (e) {
-            console.error('Format Workflow Error:', e);
+            // Error already handled by event bus
         }
     }
 
     handleCopy(silent = false) {
         const text = this.el.output.innerText;
         if (!text) return;
-        
         navigator.clipboard.writeText(text).then(() => {
             if (!silent) alert('已複製到剪貼簿');
-        }).catch(err => {
-            console.error('Clipboard Error:', err);
         });
     }
 
@@ -188,5 +172,4 @@ class AppController {
     }
 }
 
-// Start App
 window.app = new AppController();

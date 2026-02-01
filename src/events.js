@@ -14,6 +14,7 @@ export class EventBus {
 }
 
 export const Events = {
+    STATE_CHANGED: 'state:changed',
     STT_RESULT: 'stt:result',
     STT_STATUS: 'stt:status',
     STT_ERROR: 'stt:error',
