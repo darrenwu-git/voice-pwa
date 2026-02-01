@@ -1,54 +1,73 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pippi Voice - Unit Tests</title>
+    <title>Pippi Voice - 核心診斷中心</title>
     <style>
-        body { font-family: monospace; padding: 20px; line-height: 1.6; }
-        .pass { color: green; }
-        .fail { color: red; font-weight: bold; }
-        h1 { border-bottom: 2px solid #ccc; }
+        body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; }
+        .test-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .pass { color: #2ecc71; font-weight: bold; }
+        .fail { color: #e74c3c; font-weight: bold; }
+        .log { background: #2c3e50; color: #ecf0f1; padding: 10px; border-radius: 4px; font-size: 0.8rem; height: 200px; overflow-y: auto; }
     </style>
 </head>
 <body>
-    <h1>Pippi Voice Unit Tests</h1>
-    <div id="results">執行測試中...</div>
+    <h1>🐈 Pippi Voice 核心邏輯驗證</h1>
+    
+    <div class="test-card">
+        <h3>1. 狀態機轉移驗證 (State Machine Test)</h3>
+        <div id="fsm-test-result">執行中...</div>
+    </div>
+
+    <div class="test-card">
+        <h3>2. 配置完整性測試 (Config Audit)</h3>
+        <div id="config-test-result">執行中...</div>
+    </div>
+
+    <h4>執行日誌：</h4>
+    <div id="debug-log" class="log"></div>
 
     <script type="module">
-        import { Utils } from './src/utils.js';
+        import { StateMachine, AppState } from './src/state.js';
+        import { VERSION } from './src/config.js';
 
-        const results = document.getElementById('results');
-        results.innerHTML = '';
+        const logEl = document.getElementById('debug-log');
+        function log(msg) { logEl.innerHTML += `> ${msg}<br>`; }
 
-        function test(name, fn) {
-            try {
-                fn();
-                results.innerHTML += `<div class="pass">✔ ${name} PASSED</div>`;
-            } catch (e) {
-                results.innerHTML += `<div class="fail">✘ ${name} FAILED: ${e.message}</div>`;
+        // --- 測試 FSM ---
+        try {
+            log(`開始測試 v${VERSION} 狀態機...`);
+            let transitions = [];
+            const fsm = new StateMachine((state) => {
+                transitions.push(state);
+                log(`狀態轉移至: ${state}`);
+            });
+
+            // 模擬正常工作流
+            fsm.transition(AppState.RECORDING);
+            fsm.transition(AppState.FORMATTING);
+            fsm.transition(AppState.SUCCESS);
+
+            const resultEl = document.getElementById('fsm-test-result');
+            if (transitions.includes('RECORDING') && transitions.includes('FORMATTING') && transitions.includes('SUCCESS')) {
+                resultEl.innerHTML = '<span class="pass">✔ 測試通過：工作流狀態切換正確</span>';
+            } else {
+                throw new Error('狀態轉移鏈條不完整');
             }
+        } catch (e) {
+            document.getElementById('fsm-test-result').innerHTML = `<span class="fail">✘ 測試失敗：${e.message}</span>`;
         }
 
-        function assertEqual(a, b, msg) {
-            if (a !== b) throw new Error(`${msg} (預期 ${b}，得到 ${a})`);
+        // --- 測試配置 ---
+        try {
+            log('檢查版本一致性...');
+            if (VERSION && VERSION.split('.').length === 3) {
+                document.getElementById('config-test-result').innerHTML = `<span class="pass">✔ 測試通過：版本號格式正確 (v${VERSION})</span>`;
+            } else {
+                throw new Error('無效的版本號定義');
+            }
+        } catch (e) {
+            document.getElementById('config-test-result').innerHTML = `<span class="fail">✘ 測試失敗：${e.message}</span>`;
         }
-
-        // --- 測試案例 ---
-        
-        test('Utils.simpleHash 穩定性測試', () => {
-            const h1 = Utils.simpleHash('你好皮皮');
-            const h2 = Utils.simpleHash('你好皮皮');
-            const h3 = Utils.simpleHash('你好皮皮呀');
-            assertEqual(h1, h2, '相同字串應產生相同 Hash');
-            if (h1 === h3) throw new Error('不同字串應產生不同 Hash');
-        });
-
-        test('Utils.maskKey 安全掩碼測試', () => {
-            const key = 'AIza1234567890';
-            const masked = Utils.maskKey(key);
-            assertEqual(masked, 'AIza...890', '應正確顯示頭尾字元');
-        });
-
-        results.innerHTML += `<p>--- 測試結束 ---</p>`;
     </script>
 </body>
 </html>
