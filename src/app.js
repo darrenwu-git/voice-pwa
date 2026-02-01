@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.3.7 (Undo Support)
+// Pippi Voice - Main Controller v1.3.9 (Undo/Redo Support)
 import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -13,20 +13,22 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
-        this.history = []; // 歷史紀錄棧
+        this.historyStack = []; // 歷史紀錄
+        this.redoStack = [];    // 重做紀錄
         
         this.setupDOM();
         this.bindEvents();
         this.loadSettings();
         
-        console.log(`Pippi Voice v${VERSION} Initialized with Undo`);
+        console.log(`Pippi Voice v${VERSION} Initialized with Undo/Redo`);
     }
 
     setupDOM() {
         this.el = {
             micBtn: document.getElementById('mic-btn'),
             formatBtn: document.getElementById('format-btn'),
-            undoBtn: document.getElementById('undo-btn'), // 新增
+            undoBtn: document.getElementById('undo-btn'),
+            redoBtn: document.getElementById('redo-btn'), // 新增
             copyBtn: document.getElementById('copy-btn'),
             cancelBtn: document.getElementById('cancel-btn'),
             output: document.getElementById('final-output'),
@@ -50,7 +52,8 @@ class AppController {
             this.pushToHistory(); // 整理前存檔
             this.fsm.transition(AppState.FORMATTING);
         };
-        this.el.undoBtn.onclick = () => this.handleUndo(); // 新增
+        this.el.undoBtn.onclick = () => this.handleUndo();
+        this.el.redoBtn.onclick = () => this.handleRedo(); // 新增
         this.el.copyBtn.onclick = () => this.handleCopy();
         this.el.cancelBtn.onclick = () => this.handleCancel();
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
@@ -60,7 +63,7 @@ class AppController {
             this.el.checkUpdateBtn.onclick = () => window.location.reload();
         }
 
-        // 當內容被手動修改時，如果最後一筆歷史不同，就存檔
+        // 當內容被手動修改時
         this.el.output.onfocus = () => {
             this.currentContentBeforeEdit = this.el.output.innerText;
         };
@@ -97,31 +100,54 @@ class AppController {
 
     pushToHistory(content = null) {
         const text = content !== null ? content : this.el.output.innerText;
-        if (this.history.length > 0 && this.history[this.history.length - 1] === text) return;
-        this.history.push(text);
-        if (this.history.length > 20) this.history.shift(); // 最多存 20 步
-        this.updateUndoButton();
+        // 如果跟最後一筆歷史一樣，就不存
+        if (this.historyStack.length > 0 && this.historyStack[this.historyStack.length - 1] === text) return;
+        
+        this.historyStack.push(text);
+        this.redoStack = []; // 有新動作，清空 redo 棧
+        if (this.historyStack.length > 30) this.historyStack.shift();
+        this.updateUndoRedoButtons();
     }
 
     handleUndo() {
-        if (this.history.length > 0) {
-            const previousContent = this.history.pop();
+        if (this.historyStack.length > 0) {
+            const currentContent = this.el.output.innerText;
+            this.redoStack.push(currentContent); // 把目前的存入 redo
+            
+            const previousContent = this.historyStack.pop(); // 彈出歷史
             this.el.output.innerText = previousContent;
-            this.el.statusText.innerText = '已恢復至上一步';
-            this.updateUndoButton();
+            
+            this.el.statusText.innerText = '↩ 已恢復上一步';
+            this.updateUndoRedoButtons();
         }
     }
 
-    updateUndoButton() {
-        this.el.undoBtn.disabled = this.history.length === 0;
-        this.el.undoBtn.style.opacity = this.history.length === 0 ? '0.5' : '1';
+    handleRedo() {
+        if (this.redoStack.length > 0) {
+            const currentContent = this.el.output.innerText;
+            this.historyStack.push(currentContent); // 把目前的存回 history
+            
+            const nextContent = this.redoStack.pop(); // 彈出 redo
+            this.el.output.innerText = nextContent;
+            
+            this.el.statusText.innerText = '↪ 已重做下一步';
+            this.updateUndoRedoButtons();
+        }
+    }
+
+    updateUndoRedoButtons() {
+        this.el.undoBtn.disabled = this.historyStack.length === 0;
+        this.el.undoBtn.style.opacity = this.historyStack.length === 0 ? '0.4' : '1';
+        
+        this.el.redoBtn.disabled = this.redoStack.length === 0;
+        this.el.redoBtn.style.opacity = this.redoStack.length === 0 ? '0.4' : '1';
     }
 
     async handleStateChange(state, data) {
         this.el.micBtn.disabled = false;
         this.el.micBtn.classList.remove('recording');
         this.el.statusDot.style.background = '#ccc';
-        this.updateUndoButton();
+        this.updateUndoRedoButtons();
 
         switch (state) {
             case AppState.IDLE:
@@ -183,7 +209,7 @@ class AppController {
         if (!this.fsm.is(AppState.RECORDING)) {
             const apiKey = this.el.apiKey.value.trim();
             if (!apiKey && this.el.sttSelect.value !== 'web-speech') {
-                alert('請先設定 API Key');
+                alert('請提供 API Key');
                 this.el.settingsModal.classList.remove('hidden');
                 return;
             }
@@ -199,7 +225,7 @@ class AppController {
     }
 
     handleCancel() {
-        this.pushToHistory(); // 清空前存檔，萬一按錯可以救回來
+        this.pushToHistory(); 
         this.speech.stop();
         this.ai.abort();
         this.fsm.transition(AppState.IDLE);
@@ -239,7 +265,7 @@ class AppController {
         this.el.sttModelSelect.value = localStorage.getItem('pippi_selected_stt_model') || 'gemini-2.5-flash';
         this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
-        this.updateUndoButton();
+        this.updateUndoRedoButtons();
     }
 }
 

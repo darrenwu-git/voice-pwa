@@ -3,7 +3,7 @@ import re
 import sys
 
 def validate():
-    print("🐈 Pippi Safety Inspector Starting...")
+    print("🐈 Pippi Release Validator Starting...")
     
     # 1. 檢查 config.js
     version = ""
@@ -16,21 +16,21 @@ def validate():
         version = match.group(1)
         print(f"Target Version: v{version}")
 
-    # 2. 檢查 sw.js 是否包含硬編碼版本註解 (確保 Byte 變更)
+    # 2. 檢查 sw.js
     with open('sw.js', 'r') as f:
         sw = f.read()
         if f"v{version}" not in sw:
-            print(f"❌ Error: sw.js is missing version comment v{version}. It won't update!")
+            print(f"❌ Error: sw.js is missing version comment v{version}.")
             return False
 
     # 3. 檢查 app.js 核心邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
-        if 'cancelBtn' not in app or 'this.ai.abort()' not in app:
-             print("❌ Error: app.js is missing v1.3.6 'cancel' logic!")
+        if 'redoBtn' not in app or 'handleRedo' not in app:
+             print("❌ Error: app.js is missing v1.3.9 'Redo' logic!")
              return False
 
-    print(f"✅ Validation Passed: v{version} is architecturally sound and will trigger update.")
+    print(f"✅ Validation Passed: v{version} is ready.")
     return True
 
 if __name__ == "__main__":

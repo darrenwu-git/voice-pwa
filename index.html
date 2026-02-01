@@ -11,7 +11,7 @@
         
         window.addEventListener('DOMContentLoaded', () => {
             const tag = document.getElementById('version-tag');
-            if (tag) tag.innerText = `v${VERSION} (Undo Support)`;
+            if (tag) tag.innerText = `v${VERSION} (Undo/Redo)`;
             const btn = document.getElementById('check-update-btn');
             if (btn) btn.innerText = `檢查更新 (目前 v${VERSION})`;
         });
@@ -22,7 +22,7 @@
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm(`發現新版本 v${VERSION}！是否立即更新以加入「上一步/復原」功能？`)) {
+                            if (confirm(`發現新版本 v${VERSION}！是否立即更新以加入「下一步/Redo」功能？`)) {
                                 window.location.reload();
                             }
                         }
@@ -57,10 +57,11 @@
         <footer class="controls">
             <button id="mic-btn" class="mic-btn">🎤 開始錄音</button>
             <div class="action-buttons-row">
-                <button id="format-btn" class="action-btn">✨ 自動整理</button>
-                <button id="undo-btn" class="action-btn">↩ 上一步</button>
-                <button id="copy-btn" class="action-btn">📋 複製</button>
                 <button id="cancel-btn" class="action-btn cancel-btn">✖ 清空</button>
+                <button id="undo-btn" class="action-btn">↩ Undo</button>
+                <button id="redo-btn" class="action-btn">↪ Redo</button>
+                <button id="format-btn" class="action-btn">✨ 整理</button>
+                <button id="copy-btn" class="action-btn">📋 複製</button>
             </div>
         </footer>
 

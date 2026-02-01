@@ -59,7 +59,7 @@ header {
 
 .controls {
     background: var(--card);
-    padding: 8px 16px 20px 16px;
+    padding: 8px 12px 20px 12px;
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -80,17 +80,17 @@ header {
 
 .action-buttons-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 四列佈局 */
-    gap: 6px;
+    grid-template-columns: repeat(5, 1fr); /* 五列佈局 */
+    gap: 4px;
 }
 
 .action-btn {
-    padding: 10px 2px;
+    padding: 10px 1px;
     border: 1px solid #ddd;
-    border-radius: 8px;
+    border-radius: 6px;
     background: white;
     font-weight: bold;
-    font-size: 0.65rem; /* 字體再縮小以容納四個按鈕 */
+    font-size: 0.6rem; /* 再次縮小字體以應對五顆按鈕 */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -99,7 +99,6 @@ header {
 
 .cancel-btn {
     color: #f44336;
-    border-color: #f44336;
 }
 
 /* Modal */
