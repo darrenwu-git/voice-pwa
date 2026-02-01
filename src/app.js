@@ -1,4 +1,4 @@
-// Pippi Voice App Logic - v1.1.3
+// Pippi Voice App Logic - v1.1.4
 let isRecording = false;
 let apiKey = localStorage.getItem('pippi_gemini_api_key') || '';
 let customDict = localStorage.getItem('pippi_custom_dict') || '';
@@ -11,7 +11,6 @@ let audioContext = null;
 let processor = null;
 let stream = null;
 let finalTranscript = '';
-let lastFinalIndex = -1; // 用於 Web Speech API 去重
 
 // DOM Elements
 const micBtn = document.getElementById('mic-btn');
@@ -79,24 +78,25 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
         if (selectedSTT !== 'web-speech') return;
         
         let interimTranscript = '';
+        let currentFinal = '';
+        
+        // 重寫去重邏輯：直接重新計算整段 Final 文字
         for (let i = event.resultIndex; i < event.results.length; ++i) {
             const transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-                // 強效去重邏輯：只處理新的 Final 結果
-                if (i > lastFinalIndex) {
-                    if (finalTranscript.length > 0 && !finalTranscript.endsWith(' ')) {
-                        finalTranscript += ' ';
-                    }
-                    finalTranscript += transcript.trim();
-                    lastFinalIndex = i;
-                }
+                currentFinal += transcript;
             } else {
                 interimTranscript += transcript;
             }
         }
 
+        if (currentFinal) {
+            // 只把「真正新的」Final 內容加進去
+            finalTranscript += currentFinal;
+        }
+
         if (realtimeBuffer) realtimeBuffer.innerText = interimTranscript;
-        finalOutput.innerText = (finalTranscript + ' ' + interimTranscript).trim();
+        finalOutput.innerText = (finalTranscript + interimTranscript).trim();
         finalOutput.scrollTop = finalOutput.scrollHeight;
     };
 
@@ -162,7 +162,6 @@ formatBtn.onclick = async () => {
 
 async function startRecording() {
     finalTranscript = '';
-    lastFinalIndex = -1;
     finalOutput.innerText = '';
     if (realtimeBuffer) realtimeBuffer.innerText = '';
     
@@ -191,6 +190,7 @@ async function stopRecording() {
     }
 }
 
+// --- Gemini Live WebSocket Logic ---
 async function startGeminiLive() {
     try {
         statusText.innerText = '正在連線 Gemini Live...';
@@ -203,7 +203,7 @@ async function startGeminiLive() {
             statusText.innerText = '連線成功，初始化中...';
             const setup = {
                 setup: { 
-                    model: "models/gemini-2.0-flash", // 嘗試穩定版模型
+                    model: "models/gemini-2.0-flash-exp", // 修正回實驗版名稱
                     generation_config: { response_modalities: ["TEXT"] }
                 }
             };
@@ -226,7 +226,7 @@ async function startGeminiLive() {
         };
 
         socket.onerror = (e) => {
-            alert('Gemini Live 連線錯誤。這組 Key 可能不支援 WebSocket 實時介面，建議切換回「瀏覽器原生」引擎。');
+            alert('Gemini Live 連線錯誤。這組 Key 可能不支援 WebSocket 介面。');
             stopRecording();
         };
 
