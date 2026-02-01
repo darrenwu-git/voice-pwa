@@ -130,7 +130,11 @@ formatBtn.onclick = async () => {
         }
     } catch (e) {
         statusText.innerText = '整理失敗';
-        alert('AI 整理失敗，請檢查網路或 API Key。\n錯誤資訊: ' + e.message);
+        const maskedKey = apiKey ? `${apiKey.substring(0, 4)}...${apiKey.substring(apiKey.length - 3)}` : '無';
+        alert(`AI 整理失敗。
+使用的 Key: ${maskedKey} (長度: ${apiKey.length})
+使用的模型: ${modelSelect.value}
+錯誤資訊: ${e.message}`);
     }
 };
 
