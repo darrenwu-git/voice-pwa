@@ -2,20 +2,22 @@
   "name": "Pippi Voice - 智慧語音助理",
   "short_name": "Pippi Voice",
   "description": "具備 AI 自動修正與格式化功能的智慧語音輸入工具",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2196F3",
   "icons": [
     {
-      "src": "public/icons/icon-192x192.png",
+      "src": "./public/icons/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "public/icons/icon-512x512.png",
+      "src": "./public/icons/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
