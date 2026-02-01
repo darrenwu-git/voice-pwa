@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.2.1
+// Pippi Voice - Main Controller v1.2.2
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -13,7 +13,7 @@ class AppController {
         this.setupDOM();
         this.bindEvents();
         this.loadSettings();
-        console.log('Pippi Voice Controller Initialized v1.2.1');
+        console.log('Pippi Voice Controller Initialized v1.2.2');
     }
 
     setupDOM() {
@@ -37,7 +37,7 @@ class AppController {
     bindEvents() {
         // UI Interactions
         this.el.micBtn.onclick = () => this.toggleRecording();
-        this.el.formatBtn.onclick = () => this.handleFormat();
+        this.el.formatBtn.onclick = () => this.handleManualFormat();
         this.el.copyBtn.onclick = () => this.handleCopy();
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
@@ -49,7 +49,7 @@ class AppController {
                     navigator.serviceWorker.getRegistration().then(reg => {
                         if (reg) {
                             reg.update().then(() => {
-                                alert('檢查完成！如果有新版本，它會在背景下載並在下次開啟時生效。');
+                                alert('檢查指令已發送！請稍後重啟 App。');
                                 window.location.reload();
                             });
                         } else {
@@ -69,37 +69,51 @@ class AppController {
         });
 
         this.bus.on(Events.STT_STATUS, (txt) => {
-            // 如果 AI 正在整理中，不要讓語音狀態覆蓋它
-            if (this.el.statusText.innerText.includes('智慧整理')) return;
+            // 防止狀態訊息覆蓋整理中的狀態
+            if (this.el.statusText.innerText.includes('整理中')) return;
             this.el.statusText.innerText = txt;
         });
 
         this.bus.on(Events.STT_ERROR, (err) => {
             const msg = ErrorMessages[err.code] || err.message;
-            console.error('STT Error:', err);
-            this.el.statusText.innerText = '語音錯誤: ' + msg;
+            alert('語音錯誤: ' + msg);
             this.stopRecording(false);
         });
 
         this.bus.on(Events.AI_START, () => {
             this.el.statusText.innerText = '正在智慧整理中...';
+            this.el.formatBtn.disabled = true;
         });
         
         this.bus.on(Events.AI_SUCCESS, (res) => {
             this.el.output.innerText = res;
-            this.el.statusText.innerText = '整理完成';
+            this.el.statusText.innerText = '✅ 整理完成並已自動複製';
+            this.el.formatBtn.disabled = false;
             this.handleCopy(true); 
+            
+            setTimeout(() => {
+                if (this.el.statusText.innerText.includes('自動複製')) {
+                    this.el.statusText.innerText = '準備就緒';
+                }
+            }, 3000);
         });
 
         this.bus.on(Events.AI_ERROR, (err) => {
             alert('AI 錯誤: ' + err.message);
             this.el.statusText.innerText = '整理失敗';
+            this.el.formatBtn.disabled = false;
         });
     }
 
     toggleRecording() {
         if (!this.speech.isRecording) {
-            this.speech.start(this.el.sttSelect.value);
+            const apiKey = this.el.apiKey.value.trim();
+            if (!apiKey && this.el.sttSelect.value === 'gemini-live') {
+                alert('使用 Gemini Live 必須先設定 API Key');
+                this.el.settingsModal.classList.remove('hidden');
+                return;
+            }
+            this.speech.start(this.el.sttSelect.value, apiKey);
             this.el.micBtn.classList.add('recording');
             this.el.micBtn.innerText = '🛑 停止錄音';
         } else {
@@ -115,24 +129,34 @@ class AppController {
         if (triggerFormat) {
             const text = this.el.output.innerText.trim();
             if (text) {
-                console.log('Triggering auto-format...');
+                console.log('Automated Format Triggered');
                 await this.handleFormat();
             }
         }
     }
 
-    async handleFormat() {
+    async handleManualFormat() {
         const text = this.el.output.innerText.trim();
         if (!text) return;
-        
+        await this.handleFormat();
+    }
+
+    async handleFormat() {
         try {
-            await this.ai.formatText(text, {
-                apiKey: this.el.apiKey.value.trim(),
+            const apiKey = this.el.apiKey.value.trim();
+            if (!apiKey) {
+                alert('請先在設定中輸入 API Key');
+                this.el.settingsModal.classList.remove('hidden');
+                return;
+            }
+
+            await this.ai.formatText(this.el.output.innerText, {
+                apiKey: apiKey,
                 model: this.el.modelSelect.value,
                 customDict: this.el.customDict.value.trim()
             });
         } catch (e) {
-            console.error('Format execution failed', e);
+            console.error('Format Workflow Error:', e);
         }
     }
 
@@ -141,20 +165,9 @@ class AppController {
         if (!text) return;
         
         navigator.clipboard.writeText(text).then(() => {
-            if (!silent) {
-                alert('已複製到剪貼簿');
-            } else {
-                this.el.statusText.innerText = '✅ 整理完成並已自動複製';
-                // 短暫顯示後恢復
-                setTimeout(() => {
-                    if (this.el.statusText.innerText.includes('自動複製')) {
-                        this.el.statusText.innerText = '準備就緒';
-                    }
-                }, 3000);
-            }
+            if (!silent) alert('已複製到剪貼簿');
         }).catch(err => {
-            console.error('Clipboard copy failed', err);
-            if (!silent) alert('複製失敗，請手動全選複製。');
+            console.error('Clipboard Error:', err);
         });
     }
 
