@@ -66,6 +66,13 @@ class AppController {
             this.fsm.transition(AppState.ERROR, { message: ErrorMessages[err.code] || err.message });
         });
 
+        this.bus.on(Events.STT_STOPPED, () => {
+            // 如果是在錄音狀態下突然停止（非我們主動切換狀態），則跳回 IDLE
+            if (this.fsm.is(AppState.RECORDING)) {
+                this.fsm.transition(AppState.IDLE);
+            }
+        });
+
         this.bus.on(Events.AI_SUCCESS, (res) => {
             this.el.output.innerText = res;
             this.fsm.transition(AppState.SUCCESS);

@@ -18,6 +18,7 @@ export const Events = {
     STT_RESULT: 'stt:result',
     STT_STATUS: 'stt:status',
     STT_ERROR: 'stt:error',
+    STT_STOPPED: 'stt:stopped',
     AI_START: 'ai:start',
     AI_SUCCESS: 'ai:success',
     AI_ERROR: 'ai:error',

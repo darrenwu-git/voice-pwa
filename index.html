@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pippi Voice v1.2.4</title>
-    <link rel="manifest" href="manifest.json?v=1.2.4">
-    <link rel="stylesheet" href="src/style.css?v=1.2.4">
+    <title>Pippi Voice v1.2.5</title>
+    <link rel="manifest" href="manifest.json?v=1.2.5">
+    <link rel="stylesheet" href="src/style.css?v=1.2.5">
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js?v=1.2.4', { updateViaCache: 'none' }).then(reg => {
+            navigator.serviceWorker.register('./sw.js?v=1.2.5', { updateViaCache: 'none' }).then(reg => {
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
                         if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            if (confirm('發現狀態機架構更新 v1.2.4！是否立即更新以修復 UI 狀態問題？')) {
+                            if (confirm('發現重要狀態同步修正 v1.2.5！是否立即更新？')) {
                                 window.location.reload();
                             }
                         }
@@ -30,7 +30,7 @@
                 <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon" style="width:24px; height:24px; border-radius:50%">
                 <div>
                     <h1 style="font-size:1rem; margin:0">Pippi Voice</h1>
-                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.2.4 (State Machine Core)</small>
+                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.2.5 (State Sync Patch)</small>
                 </div>
             </div>
             <button id="settings-btn" style="background:none; border:none; font-size:1.2rem">⚙️</button>
@@ -80,12 +80,12 @@
                     <textarea id="custom-dict" rows="3"></textarea>
                 </div>
                 <div class="version-info">
-                    <button id="check-update-btn" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#f0f0f0">檢查更新 (目前 v1.2.4)</button>
+                    <button id="check-update-btn" style="width:100%; margin-bottom:10px; padding:10px; border:1px solid #ddd; border-radius:8px; background:#f0f0f0">檢查更新 (目前 v1.2.5)</button>
                 </div>
                 <button id="save-settings" style="width:100%; padding:12px; background:#2196F3; color:white; border:none; border-radius:8px; font-weight:bold">儲存並關閉</button>
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.2.4" type="module"></script>
+    <script src="src/app.js?v=1.2.5" type="module"></script>
 </body>
 </html>

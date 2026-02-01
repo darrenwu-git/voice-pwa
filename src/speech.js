@@ -184,5 +184,6 @@ export class SpeechManager {
             this.socket = null;
         }
         this.bus.emit(Events.STT_STATUS, '已停止');
+        this.bus.emit(Events.STT_STOPPED);
     }
 }
