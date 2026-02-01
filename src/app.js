@@ -73,14 +73,18 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition.onresult = (event) => {
         let interimTranscript = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
+            let transcript = event.results[i][0].transcript;
             if (event.results[i].isFinal) {
-                finalTranscript += event.results[i][0].transcript + ' ';
+                if (finalTranscript.length > 0 && !finalTranscript.endsWith(' ')) {
+                    finalTranscript += ' ';
+                }
+                finalTranscript += transcript.trim();
             } else {
-                interimTranscript += event.results[i][0].transcript;
+                interimTranscript += transcript;
             }
         }
         realtimeBuffer.innerText = interimTranscript;
-        finalOutput.innerText = finalTranscript + interimTranscript;
+        finalOutput.innerText = (finalTranscript + interimTranscript).trim();
     };
 
     recognition.onerror = (event) => {
