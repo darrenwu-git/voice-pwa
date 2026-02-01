@@ -18,7 +18,7 @@
         });
 
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js', { type: 'module' }).then(reg => {
+            navigator.serviceWorker.register(`./sw.js?v=${VERSION}`, { type: 'module' }).then(reg => {
                 reg.onupdatefound = () => {
                     const installingWorker = reg.installing;
                     installingWorker.onstatechange = () => {
