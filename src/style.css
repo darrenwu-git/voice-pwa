@@ -3,134 +3,66 @@
     --bg: #f5f7fa;
     --card: #ffffff;
     --text: #333;
-    --accent: #FF9800;
 }
 
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body, html {
-    margin: 0;
-    padding: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background-color: var(--bg);
-    color: var(--text);
-    height: 100%;
-    width: 100%;
-    position: fixed; /* 避免手機瀏覽器彈跳 */
-    overflow: hidden;
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    overflow: hidden; /* 防止滾動條導致位移 */
+    background: var(--bg);
 }
 
 #app {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto auto 1fr auto; /* 核心修正：明確鎖定各區塊高度 */
     height: 100vh;
     height: 100dvh;
-    width: 100%;
 }
 
 header {
-    padding: 8px 16px;
     background: var(--card);
+    padding: 8px 16px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    flex-shrink: 0;
-}
-
-header h1 {
-    font-size: 1rem;
-    margin: 0;
-}
-
-.logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.logo div {
-    display: flex;
-    flex-direction: column;
-}
-
-#version-tag {
-    font-size: 0.55rem;
-    color: #999;
-}
-
-.header-icon {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-}
-
-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-    gap: 8px;
-    min-height: 0; /* Flexbox 修正 */
+    border-bottom: 1px solid #ddd;
 }
 
 #status-bar {
+    padding: 4px 16px;
+    font-size: 0.7rem;
+    color: #666;
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 0.7rem;
-    color: #666;
-    flex-shrink: 0;
-}
-
-.status-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: #ccc;
-}
-
-.status-dot.active {
-    background: #4CAF50;
-    box-shadow: 0 0 5px #4CAF50;
 }
 
 .display-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    padding: 8px;
+    min-height: 0; /* 強制內容區可被 flex/grid 壓縮 */
 }
 
 .output-text {
-    flex: 1;
+    width: 100%;
+    height: 100%;
     background: var(--card);
     border-radius: 12px;
+    border: 1px solid #ddd;
     padding: 12px;
     font-size: 1rem;
-    line-height: 1.5;
-    border: 1px solid #ddd;
-    outline: none;
     overflow-y: auto;
-    white-space: pre-wrap;
-}
-
-.buffer-text.hidden {
-    display: none;
+    outline: none;
 }
 
 .controls {
+    background: var(--card);
+    padding: 8px 16px 20px 16px; /* 增加底部 Padding 避開手機 Home Bar */
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 8px 0;
-    flex-shrink: 0;
-}
-
-.mic-btn-container {
-    width: 100%;
+    border-top: 1px solid #ddd;
 }
 
 .mic-btn {
@@ -140,18 +72,10 @@ main {
     border: none;
     background: var(--primary);
     color: white;
-    font-size: 1.1rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    box-shadow: 0 2px 6px rgba(33, 150, 243, 0.2);
-    cursor: pointer;
+    font-weight: bold;
 }
 
-.mic-btn.recording {
-    background: #f44336;
-    animation: pulse 1.5s infinite;
-}
+.mic-btn.recording { background: #f44336; }
 
 .action-buttons-row {
     display: grid;
@@ -161,100 +85,17 @@ main {
 
 .action-btn {
     padding: 10px;
-    border-radius: 10px;
     border: 1px solid #ddd;
-    background: var(--card);
-    cursor: pointer;
+    border-radius: 8px;
+    background: white;
     font-weight: bold;
     font-size: 0.85rem;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 4px;
-}
-
-@keyframes pulse {
-    0% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.4); }
-    70% { box-shadow: 0 0 0 10px rgba(244, 67, 54, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(244, 67, 54, 0); }
 }
 
 /* Modal */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    z-index: 1000;
-}
-
-.modal.hidden {
-    display: none;
-}
-
-.modal-content {
-    background: white;
-    padding: 1.2rem;
-    border-radius: 16px;
-    width: 90%;
-    max-width: 400px;
-}
-
-.input-group {
-    margin-bottom: 0.8rem;
-}
-
-.input-group label {
-    display: block;
-    margin-bottom: 0.3rem;
-    font-size: 0.8rem;
-}
-
-.input-group input, .input-group select, .input-group textarea {
-    width: 100%;
-    padding: 0.6rem;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-sizing: border-box;
-}
-
-.password-wrapper {
-    position: relative;
-    display: flex;
-    align-items: center;
-}
-
-.toggle-btn {
-    position: absolute;
-    right: 10px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-}
-
-.primary-btn {
-    width: 100%;
-    padding: 0.8rem;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-weight: bold;
-}
-
-.secondary-btn {
-    width: 100%;
-    padding: 0.6rem;
-    background: #eee;
-    color: #333;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    margin-bottom: 0.6rem;
-    font-size: 0.7rem;
-}
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; }
+.modal.hidden { display: none; }
+.modal-content { background: white; padding: 20px; border-radius: 16px; width: 90%; max-width: 400px; }
+.input-group { margin-bottom: 12px; }
+.input-group label { display: block; font-size: 0.8rem; margin-bottom: 4px; }
+.input-group input, .input-group select, .input-group textarea { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 8px; }

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pippi Voice - Unit Tests</title>
+    <style>
+        body { font-family: monospace; padding: 20px; line-height: 1.6; }
+        .pass { color: green; }
+        .fail { color: red; font-weight: bold; }
+        h1 { border-bottom: 2px solid #ccc; }
+    </style>
+</head>
+<body>
+    <h1>Pippi Voice Unit Tests</h1>
+    <div id="results">執行測試中...</div>
+
+    <script type="module">
+        import { Utils } from './src/utils.js';
+
+        const results = document.getElementById('results');
+        results.innerHTML = '';
+
+        function test(name, fn) {
+            try {
+                fn();
+                results.innerHTML += `<div class="pass">✔ ${name} PASSED</div>`;
+            } catch (e) {
+                results.innerHTML += `<div class="fail">✘ ${name} FAILED: ${e.message}</div>`;
+            }
+        }
+
+        function assertEqual(a, b, msg) {
+            if (a !== b) throw new Error(`${msg} (預期 ${b}，得到 ${a})`);
+        }
+
+        // --- 測試案例 ---
+        
+        test('Utils.simpleHash 穩定性測試', () => {
+            const h1 = Utils.simpleHash('你好皮皮');
+            const h2 = Utils.simpleHash('你好皮皮');
+            const h3 = Utils.simpleHash('你好皮皮呀');
+            assertEqual(h1, h2, '相同字串應產生相同 Hash');
+            if (h1 === h3) throw new Error('不同字串應產生不同 Hash');
+        });
+
+        test('Utils.maskKey 安全掩碼測試', () => {
+            const key = 'AIza1234567890';
+            const masked = Utils.maskKey(key);
+            assertEqual(masked, 'AIza...890', '應正確顯示頭尾字元');
+        });
+
+        results.innerHTML += `<p>--- 測試結束 ---</p>`;
+    </script>
+</body>
+</html>

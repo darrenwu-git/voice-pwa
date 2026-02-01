@@ -3,37 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Pippi Voice - 智慧語音輸入</title>
+    <title>Pippi Voice v1.1.6</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#2196F3">
-    <link rel="stylesheet" href="src/style.css?v=1.1.5">
-    <link rel="apple-touch-icon" href="public/icons/icon-192x192.png">
+    <link rel="stylesheet" href="src/style.css?v=1.1.6">
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js?v=1.1.5').then(reg => {
-                    reg.onupdatefound = () => {
-                        const installingWorker = reg.installing;
-                        installingWorker.onstatechange = () => {
-                            if (installingWorker.state === 'installed') {
-                                if (navigator.serviceWorker.controller) {
-                                    if (confirm('發現新版本 v1.1.5！是否立即更新以修正語音重複與連線問題？')) {
-                                        window.location.reload();
-                                    }
-                                }
-                            }
-                        };
-                    };
-                });
-            });
-
-            let refreshing = false;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (!refreshing) {
-                    window.location.reload();
-                    refreshing = true;
-                }
-            });
+            navigator.serviceWorker.register('./sw.js?v=1.1.6');
         }
     </script>
 </head>
@@ -41,80 +16,63 @@
     <div id="app">
         <header>
             <div class="logo">
-                <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon">
+                <img src="public/icons/icon-192x192.png" alt="Pippi" class="header-icon" style="width:24px; height:24px; border-radius:50%">
                 <div>
-                    <h1>Pippi Voice</h1>
-                    <small id="version-tag">v1.1.5</small>
+                    <h1 style="font-size:1rem; margin:0">Pippi Voice</h1>
+                    <small id="version-tag" style="font-size:0.6rem; color:#999">v1.1.6 (Refactored)</small>
                 </div>
             </div>
-            <button id="settings-btn" class="icon-btn">⚙️</button>
+            <button id="settings-btn" style="background:none; border:none; font-size:1.2rem">⚙️</button>
         </header>
 
-        <main>
-            <div id="status-bar">
-                <span id="connection-status" class="status-dot"></span>
-                <span id="status-text">準備就緒</span>
-            </div>
+        <div id="status-bar">
+            <span class="status-dot" style="width:8px; height:8px; background:#ccc; border-radius:50%"></span>
+            <span id="status-text">準備就緒</span>
+        </div>
 
-            <div class="display-container">
-                <div id="realtime-buffer" class="buffer-text hidden" placeholder="即時語音辨識中..."></div>
-                <div id="final-output" class="output-text" contenteditable="true" placeholder="格式化後的內容將顯示在這裡..."></div>
-            </div>
-
-            <div class="controls">
-                <div class="mic-btn-container">
-                    <button id="mic-btn" class="mic-btn">
-                        <span class="mic-icon">🎤</span>
-                    </button>
-                </div>
-                <div class="action-buttons-row">
-                    <button id="format-btn" class="action-btn">✨ 自動整理</button>
-                    <button id="copy-btn" class="action-btn">📋 複製內容</button>
-                </div>
-            </div>
+        <main class="display-container">
+            <div id="final-output" class="output-text" contenteditable="true" placeholder="在這裡開始錄音..."></div>
         </main>
 
-        <!-- 設定彈窗 -->
+        <footer class="controls">
+            <button id="mic-btn" class="mic-btn">🎤 開始錄音</button>
+            <div class="action-buttons-row">
+                <button id="format-btn" class="action-btn">✨ 自動整理</button>
+                <button id="copy-btn" class="action-btn">📋 複製內容</button>
+            </div>
+        </footer>
+
+        <!-- Settings Modal -->
         <div id="settings-modal" class="modal hidden">
             <div class="modal-content">
-                <h2>設定</h2>
+                <h2>App 設定</h2>
                 <div class="input-group">
-                    <label for="api-key">Gemini API Key (<a href="https://aistudio.google.com/app/apikey" target="_blank">取得免費 Key</a>):</label>
-                    <div class="password-wrapper">
-                        <input type="password" id="api-key" placeholder="輸入您的 API Key">
-                        <button id="toggle-password" class="toggle-btn">👁️</button>
-                    </div>
+                    <label>Gemini API Key:</label>
+                    <input type="password" id="api-key" placeholder="AIza...">
                 </div>
                 <div class="input-group">
-                    <label for="stt-select">語音辨識引擎:</label>
+                    <label>辨識引擎:</label>
                     <select id="stt-select">
-                        <option value="web-speech">瀏覽器原生 (免費/穩定)</option>
-                        <option value="gemini-live">Gemini Live (AI 即時辨識)</option>
+                        <option value="web-speech">瀏覽器原生 (推薦)</option>
+                        <option value="gemini-live">Gemini Live (Beta)</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label for="model-select">模型選擇 (僅用於自動整理):</label>
+                    <label>整理模型:</label>
                     <select id="model-select">
-                        <option value="gemini-2.5-flash">Gemini 2.5 Flash (推薦)</option>
-                        <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
-                        <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                        <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
                         <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label for="custom-dict">自定義詞庫 (每行一個):</label>
-                    <textarea id="custom-dict" placeholder="例如：
-OpenClaw
-Pippi
-Darren Wu" rows="4"></textarea>
+                    <label>詞庫:</label>
+                    <textarea id="custom-dict" rows="3"></textarea>
                 </div>
-                <div class="version-info">
-                    <button id="check-update-btn" class="secondary-btn">檢查更新 (目前 v1.1.5)</button>
-                </div>
-                <button id="save-settings" class="primary-btn">儲存並關閉</button>
+                <button id="check-update-btn" style="width:100%; margin-bottom:10px; padding:8px">檢查更新</button>
+                <button id="save-settings" style="width:100%; padding:12px; background:#2196F3; color:white; border:none; border-radius:8px">儲存</button>
             </div>
         </div>
     </div>
-    <script src="src/app.js?v=1.1.5" type="module"></script>
+    <script src="src/app.js?v=1.1.6" type="module"></script>
 </body>
 </html>
