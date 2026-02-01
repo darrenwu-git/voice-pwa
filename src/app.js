@@ -1,4 +1,5 @@
-// Pippi Voice - Main Controller v1.3.6 (Cancellation Support)
+// Pippi Voice - Main Controller v1.3.7 (Undo Support)
+import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -12,17 +13,22 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
+        this.history = []; // 歷史紀錄棧
+        
         this.setupDOM();
         this.bindEvents();
         this.loadSettings();
+        
+        console.log(`Pippi Voice v${VERSION} Initialized with Undo`);
     }
 
     setupDOM() {
         this.el = {
             micBtn: document.getElementById('mic-btn'),
             formatBtn: document.getElementById('format-btn'),
+            undoBtn: document.getElementById('undo-btn'), // 新增
             copyBtn: document.getElementById('copy-btn'),
-            cancelBtn: document.getElementById('cancel-btn'), // 新增
+            cancelBtn: document.getElementById('cancel-btn'),
             output: document.getElementById('final-output'),
             statusText: document.getElementById('status-text'),
             statusDot: document.querySelector('.status-dot'),
@@ -40,15 +46,29 @@ class AppController {
 
     bindEvents() {
         this.el.micBtn.onclick = () => this.handleMicClick();
-        this.el.formatBtn.onclick = () => this.fsm.transition(AppState.FORMATTING);
+        this.el.formatBtn.onclick = () => {
+            this.pushToHistory(); // 整理前存檔
+            this.fsm.transition(AppState.FORMATTING);
+        };
+        this.el.undoBtn.onclick = () => this.handleUndo(); // 新增
         this.el.copyBtn.onclick = () => this.handleCopy();
-        this.el.cancelBtn.onclick = () => this.handleCancel(); // 新增
+        this.el.cancelBtn.onclick = () => this.handleCancel();
         this.el.settingsBtn.onclick = () => this.el.settingsModal.classList.remove('hidden');
         this.el.saveSettings.onclick = () => this.saveSettings();
         
         if (this.el.checkUpdateBtn) {
             this.el.checkUpdateBtn.onclick = () => window.location.reload();
         }
+
+        // 當內容被手動修改時，如果最後一筆歷史不同，就存檔
+        this.el.output.onfocus = () => {
+            this.currentContentBeforeEdit = this.el.output.innerText;
+        };
+        this.el.output.onblur = () => {
+            if (this.el.output.innerText !== this.currentContentBeforeEdit) {
+                this.pushToHistory(this.currentContentBeforeEdit);
+            }
+        };
 
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
             this.el.output.innerText = (final + interim).trim();
@@ -75,10 +95,33 @@ class AppController {
         });
     }
 
+    pushToHistory(content = null) {
+        const text = content !== null ? content : this.el.output.innerText;
+        if (this.history.length > 0 && this.history[this.history.length - 1] === text) return;
+        this.history.push(text);
+        if (this.history.length > 20) this.history.shift(); // 最多存 20 步
+        this.updateUndoButton();
+    }
+
+    handleUndo() {
+        if (this.history.length > 0) {
+            const previousContent = this.history.pop();
+            this.el.output.innerText = previousContent;
+            this.el.statusText.innerText = '已恢復至上一步';
+            this.updateUndoButton();
+        }
+    }
+
+    updateUndoButton() {
+        this.el.undoBtn.disabled = this.history.length === 0;
+        this.el.undoBtn.style.opacity = this.history.length === 0 ? '0.5' : '1';
+    }
+
     async handleStateChange(state, data) {
         this.el.micBtn.disabled = false;
         this.el.micBtn.classList.remove('recording');
         this.el.statusDot.style.background = '#ccc';
+        this.updateUndoButton();
 
         switch (state) {
             case AppState.IDLE:
@@ -88,6 +131,7 @@ class AppController {
                 break;
 
             case AppState.RECORDING:
+                this.pushToHistory(); // 錄音前存檔
                 this.el.micBtn.innerText = '🛑 停止錄音';
                 this.el.micBtn.classList.add('recording');
                 this.el.statusDot.style.background = '#4CAF50';
@@ -155,7 +199,7 @@ class AppController {
     }
 
     handleCancel() {
-        // 取消目前所有的活動
+        this.pushToHistory(); // 清空前存檔，萬一按錯可以救回來
         this.speech.stop();
         this.ai.abort();
         this.fsm.transition(AppState.IDLE);
@@ -195,6 +239,7 @@ class AppController {
         this.el.sttModelSelect.value = localStorage.getItem('pippi_selected_stt_model') || 'gemini-2.5-flash';
         this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
+        this.updateUndoButton();
     }
 }
 

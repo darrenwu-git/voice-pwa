@@ -80,17 +80,17 @@ header {
 
 .action-buttons-row {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr; /* 三列 */
-    gap: 8px;
+    grid-template-columns: repeat(4, 1fr); /* 四列佈局 */
+    gap: 6px;
 }
 
 .action-btn {
-    padding: 10px 4px;
+    padding: 10px 2px;
     border: 1px solid #ddd;
     border-radius: 8px;
     background: white;
     font-weight: bold;
-    font-size: 0.75rem; /* 字體縮小一點以應對三列 */
+    font-size: 0.65rem; /* 字體再縮小以容納四個按鈕 */
     display: flex;
     justify-content: center;
     align-items: center;
