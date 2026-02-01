@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.4.6 (Final Stability)
+// Pippi Voice - Main Controller v1.4.9 (Customizable Workflow)
 import { VERSION, VERSION_TAG } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -13,7 +13,6 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
-        // 歷史引擎初始化
         this.undoStack = [];
         this.redoStack = [];
         this.currentValue = ''; 
@@ -22,7 +21,7 @@ class AppController {
         this.bindEvents();
         this.loadSettings();
         
-        console.log(`[Core] Pippi Voice v${VERSION} (${VERSION_TAG}) Initialized.`);
+        console.log(`[Core] Pippi Voice v${VERSION} Initialized.`);
     }
 
     setupDOM() {
@@ -45,15 +44,12 @@ class AppController {
             sttModelSelect: document.getElementById('stt-model-select'),
             formatModelSelect: document.getElementById('format-model-select'),
             customDict: document.getElementById('custom-dict'),
+            autoFormatToggle: document.getElementById('auto-format-toggle'), // 新增
+            autoCopyToggle: document.getElementById('auto-copy-toggle'),     // 新增
             checkUpdateBtn: document.getElementById('check-update-btn'),
             hardResetBtn: document.getElementById('hard-reset-btn'),
             versionTag: document.getElementById('version-tag')
         };
-        
-        // 安全檢查：確保所有 DOM 元素都存在
-        for (const [key, element] of Object.entries(this.el)) {
-            if (!element) console.warn(`[DOM] Warning: Element "${key}" not found in current document.`);
-        }
         
         if (this.el.versionTag) {
             this.el.versionTag.innerText = `v${VERSION} (${VERSION_TAG})`;
@@ -64,7 +60,6 @@ class AppController {
         newVal = newVal ? newVal.trim() : "";
         if (newVal === this.currentValue) return;
         
-        console.log('[History] Saving checkpoint...');
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
         this.redoStack = []; 
@@ -130,7 +125,6 @@ class AppController {
 
         if (this.el.checkUpdateBtn) {
             this.el.checkUpdateBtn.onclick = () => {
-                this.el.statusText.innerText = '正在檢查更新...';
                 if ('serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistration().then(reg => {
                         if (reg) reg.update().then(() => window.location.reload());
@@ -142,7 +136,7 @@ class AppController {
 
         if (this.el.hardResetBtn) {
             this.el.hardResetBtn.onclick = () => {
-                if (confirm('這將清除所有緩存並重置 App，確定嗎？')) {
+                if (confirm('這將清除所有快取並重置 App，確定嗎？')) {
                     if ('serviceWorker' in navigator) {
                         navigator.serviceWorker.getRegistrations().then(regs => {
                             for(let reg of regs) reg.unregister();
@@ -213,7 +207,13 @@ class AppController {
                     if (transcript) {
                         this.el.output.innerText = transcript;
                         this.saveState(transcript);
-                        this.fsm.transition(AppState.FORMATTING);
+                        
+                        // 檢查是否要自動整理
+                        if (this.el.autoFormatToggle.checked) {
+                            this.fsm.transition(AppState.FORMATTING);
+                        } else {
+                            this.fsm.transition(AppState.SUCCESS);
+                        }
                     } else {
                         this.fsm.transition(AppState.IDLE);
                     }
@@ -232,8 +232,9 @@ class AppController {
                 break;
 
             case AppState.SUCCESS:
-                this.el.statusText.innerText = '✅ 整理完成並已自動複製';
-                this.handleCopy(true);
+                const isAutoCopy = this.el.autoCopyToggle.checked;
+                this.el.statusText.innerText = isAutoCopy ? '✅ 辨識完成並已自動複製' : '✅ 辨識完成';
+                if (isAutoCopy) this.handleCopy(true);
                 setTimeout(() => { if (this.fsm.is(AppState.SUCCESS)) this.fsm.transition(AppState.IDLE); }, 3000);
                 break;
 
@@ -259,7 +260,12 @@ class AppController {
             if (this.el.sttSelect.value === 'gemini-file' && audioBlob) {
                 this.fsm.transition(AppState.STT_PROCESSING, { blob: audioBlob });
             } else {
-                this.fsm.transition(AppState.FORMATTING);
+                // 原生模式或 WebSocket 模式下停止錄音
+                if (this.el.autoFormatToggle.checked) {
+                    this.fsm.transition(AppState.FORMATTING);
+                } else {
+                    this.fsm.transition(AppState.SUCCESS);
+                }
             }
         }
     }
@@ -288,6 +294,8 @@ class AppController {
         localStorage.setItem('pippi_selected_stt_model', this.el.sttModelSelect.value);
         localStorage.setItem('pippi_selected_format_model', this.el.formatModelSelect.value);
         localStorage.setItem('pippi_custom_dict', this.el.customDict.value.trim());
+        localStorage.setItem('pippi_auto_format', this.el.autoFormatToggle.checked);
+        localStorage.setItem('pippi_auto_copy', this.el.autoCopyToggle.checked);
         this.el.settingsModal.classList.add('hidden');
     }
 
@@ -297,6 +305,11 @@ class AppController {
         this.el.sttModelSelect.value = localStorage.getItem('pippi_selected_stt_model') || 'gemini-2.5-flash';
         this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
+        
+        // 預設開啟自動整理與複製
+        this.el.autoFormatToggle.checked = localStorage.getItem('pippi_auto_format') !== 'false';
+        this.el.autoCopyToggle.checked = localStorage.getItem('pippi_auto_copy') !== 'false';
+        
         this.currentValue = this.el.output.innerText.trim();
         this.updateUndoRedoUI();
     }

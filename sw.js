@@ -1,4 +1,4 @@
-// Pippi Service Worker v1.4.8
+// Pippi Service Worker v1.4.9
 import { VERSION, CACHE_NAME, ASSETS } from './src/config.js';
 
 self.addEventListener('install', (event) => {
@@ -26,7 +26,6 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.mode === 'navigate') {
-    // 導航時強制抓最新 HTML，若失敗才用快取
     event.respondWith(
       fetch(event.request).catch(() => caches.match(event.request))
     );
