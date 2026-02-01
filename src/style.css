@@ -36,6 +36,18 @@ header h1 {
     margin: 0;
 }
 
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
 main {
     flex: 1;
     display: flex;
