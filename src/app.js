@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.3.0 (Two-Stage AI Model)
+// Pippi Voice - Main Controller v1.3.1 (Gemini 2.5 Fix)
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
 import { AIManager } from './ai.js';
@@ -16,7 +16,7 @@ class AppController {
         this.bindEvents();
         this.loadSettings();
         
-        console.log('Pippi Voice v1.3.0 Initialized');
+        console.log('Pippi Voice v1.3.1 Initialized');
     }
 
     setupDOM() {
@@ -32,8 +32,8 @@ class AppController {
             saveSettings: document.getElementById('save-settings'),
             apiKey: document.getElementById('api-key'),
             sttSelect: document.getElementById('stt-select'),
-            sttModelSelect: document.getElementById('stt-model-select'), // 新增
-            formatModelSelect: document.getElementById('format-model-select'), // 新增
+            sttModelSelect: document.getElementById('stt-model-select'),
+            formatModelSelect: document.getElementById('format-model-select'),
             customDict: document.getElementById('custom-dict'),
             checkUpdateBtn: document.getElementById('check-update-btn')
         };
@@ -94,17 +94,15 @@ class AppController {
             case AppState.STT_PROCESSING:
                 this.el.statusText.innerText = '正在上傳並辨識語音中...';
                 this.el.micBtn.disabled = true;
-                const audioBlob = data.blob;
                 try {
-                    const transcript = await this.ai.transcribeAudio(audioBlob, {
+                    const transcript = await this.ai.transcribeAudio(data.blob, {
                         apiKey: this.el.apiKey.value.trim(),
                         model: this.el.sttModelSelect.value
                     });
                     this.el.output.innerText = transcript;
-                    // 自動進入整理階段
                     this.fsm.transition(AppState.FORMATTING);
                 } catch (e) {
-                    this.fsm.transition(AppState.ERROR, { message: '語音辨識失敗: ' + e.message });
+                    this.fsm.transition(AppState.ERROR, { message: '辨識失敗: ' + e.message });
                 }
                 break;
 
@@ -181,7 +179,7 @@ class AppController {
     loadSettings() {
         this.el.apiKey.value = localStorage.getItem('pippi_gemini_api_key') || '';
         this.el.sttSelect.value = localStorage.getItem('pippi_selected_stt') || 'web-speech';
-        this.el.sttModelSelect.value = localStorage.getItem('pippi_selected_stt_model') || 'gemini-1.5-flash';
+        this.el.sttModelSelect.value = localStorage.getItem('pippi_selected_stt_model') || 'gemini-2.5-flash';
         this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
     }
