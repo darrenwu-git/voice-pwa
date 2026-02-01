@@ -236,3 +236,14 @@ main {
     border-radius: 8px;
     font-weight: bold;
 }
+
+.secondary-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: #eee;
+    color: #333;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.8rem;
+}

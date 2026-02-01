@@ -20,11 +20,30 @@ const formatBtn = document.getElementById('format-btn');
 const copyBtn = document.getElementById('copy-btn');
 const realtimeBuffer = document.getElementById('realtime-buffer');
 const finalOutput = document.getElementById('final-output');
+const checkUpdateBtn = document.getElementById('check-update-btn');
 
 // Initialize UI
 if (apiKey) apiKeyInput.value = apiKey;
 if (customDict) customDictInput.value = customDict;
 if (selectedModel) modelSelect.value = selectedModel;
+
+checkUpdateBtn.onclick = () => {
+    if ('serviceWorker' in navigator) {
+        statusText.innerText = '正在檢查更新...';
+        navigator.serviceWorker.getRegistration().then(reg => {
+            if (reg) {
+                reg.update().then(() => {
+                    alert('檢查完成！如果有新版本，它會在背景下載並在下次開啟時生效，或者現在重新整理。');
+                    window.location.reload();
+                });
+            } else {
+                window.location.reload();
+            }
+        });
+    } else {
+        window.location.reload();
+    }
+};
 
 const togglePasswordBtn = document.createElement('button');
 togglePasswordBtn.innerText = '👁️';
