@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.4.0 (Robust Undo/Redo)
+// Pippi Voice - Main Controller v1.4.1 (Two-Stage History Logic)
 import { VERSION } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -13,7 +13,6 @@ class AppController {
         this.ai = new AIManager(this.bus);
         this.fsm = new StateMachine((state, data) => this.handleStateChange(state, data));
         
-        // --- 核心歷史引擎 ---
         this.undoStack = [];
         this.redoStack = [];
         this.currentValue = ''; 
@@ -22,7 +21,7 @@ class AppController {
         this.bindEvents();
         this.loadSettings();
         
-        console.log(`Pippi Voice v${VERSION} - Robust Mode Initialized`);
+        console.log(`Pippi Voice v${VERSION} Initialized`);
     }
 
     setupDOM() {
@@ -48,41 +47,42 @@ class AppController {
         };
     }
 
-    // --- 歷史紀錄核心方法 ---
     saveState(newVal) {
         newVal = newVal.trim();
         if (newVal === this.currentValue) return;
         
-        console.log('Saving State:', newVal);
+        console.log('[History] Pushing to Undo stack, Old:', this.currentValue, 'New:', newVal);
         this.undoStack.push(this.currentValue);
         this.currentValue = newVal;
-        this.redoStack = []; // 有新動作，清空重做
+        this.redoStack = []; // Clear redo on new action
         
         if (this.undoStack.length > 50) this.undoStack.shift();
-        this.updateUI();
+        this.updateUndoRedoUI();
     }
 
     handleUndo() {
         if (this.undoStack.length > 0) {
+            console.log('[History] Undo triggered');
             this.redoStack.push(this.currentValue);
             this.currentValue = this.undoStack.pop();
             this.el.output.innerText = this.currentValue;
             this.el.statusText.innerText = '↩ 已恢復上一步';
-            this.updateUI();
+            this.updateUndoRedoUI();
         }
     }
 
     handleRedo() {
         if (this.redoStack.length > 0) {
+            console.log('[History] Redo triggered');
             this.undoStack.push(this.currentValue);
             this.currentValue = this.redoStack.pop();
             this.el.output.innerText = this.currentValue;
             this.el.statusText.innerText = '↪ 已重做下一步';
-            this.updateUI();
+            this.updateUndoRedoUI();
         }
     }
 
-    updateUI() {
+    updateUndoRedoUI() {
         this.el.undoBtn.disabled = this.undoStack.length === 0;
         this.el.undoBtn.style.opacity = this.undoStack.length === 0 ? '0.3' : '1';
         this.el.redoBtn.disabled = this.redoStack.length === 0;
@@ -96,7 +96,7 @@ class AppController {
         this.el.redoBtn.onclick = () => this.handleRedo();
         this.el.copyBtn.onclick = () => this.handleCopy();
         this.el.cancelBtn.onclick = () => {
-            this.saveState(""); // 存入空狀態以實現清空後的 Undo
+            this.saveState(""); 
             this.el.output.innerText = "";
             this.fsm.transition(AppState.IDLE);
         };
@@ -105,14 +105,14 @@ class AppController {
         this.el.saveSettings.onclick = () => this.saveSettings();
         if (this.el.checkUpdateBtn) this.el.checkUpdateBtn.onclick = () => window.location.reload();
 
-        // 監聽手動編輯
         this.el.output.onblur = () => {
             this.saveState(this.el.output.innerText);
         };
 
         this.bus.on(Events.STT_RESULT, ({ final, interim }) => {
-            const fullText = (this.currentValue + " " + final + interim).trim();
-            this.el.output.innerText = fullText;
+            // 在錄音過程中不 saveState，只動態顯示
+            const sttText = (final + interim).trim();
+            this.el.output.innerText = sttText;
             this.el.output.scrollTop = this.el.output.scrollHeight;
         });
 
@@ -122,7 +122,8 @@ class AppController {
 
         this.bus.on(Events.AI_SUCCESS, (res) => {
             if (res) {
-                this.saveState(res); // 整理完成後存檔
+                console.log('[Stage 2] AI Formatting completed');
+                this.saveState(res); // 存入最終 AI 整理後的內容
                 this.el.output.innerText = res;
                 this.fsm.transition(AppState.SUCCESS);
             }
@@ -137,7 +138,7 @@ class AppController {
         this.el.micBtn.disabled = false;
         this.el.micBtn.classList.remove('recording');
         this.el.statusDot.style.background = '#ccc';
-        this.updateUI();
+        this.updateUndoRedoUI();
 
         switch (state) {
             case AppState.IDLE:
@@ -151,7 +152,7 @@ class AppController {
                 this.el.micBtn.classList.add('recording');
                 this.el.statusDot.style.background = '#4CAF50';
                 this.el.output.innerText = '';
-                this.currentValue = ''; // 錄音開始，主動清空當前基準
+                this.currentValue = ''; // 重置當前基準為空
                 this.speech.start(this.el.sttSelect.value, { apiKey: this.el.apiKey.value.trim() });
                 break;
 
@@ -164,8 +165,9 @@ class AppController {
                         model: this.el.sttModelSelect.value
                     });
                     if (transcript) {
+                        console.log('[Stage 1] STT completed, saving raw transcript...');
                         this.el.output.innerText = transcript;
-                        this.currentValue = transcript; // 辨識完的結果設為當前基準
+                        this.saveState(transcript); // 重要：辨識完後存檔一次
                         this.fsm.transition(AppState.FORMATTING);
                     } else {
                         this.fsm.transition(AppState.IDLE);
@@ -178,6 +180,10 @@ class AppController {
             case AppState.FORMATTING:
                 this.el.statusText.innerText = '正在智慧整理中...';
                 this.el.micBtn.disabled = true;
+                // 對於非 gemini-file 模式，我們需要在整理前存下目前的 STT 文字
+                if (this.el.sttSelect.value !== 'gemini-file') {
+                    this.saveState(this.el.output.innerText);
+                }
                 this.triggerAIFormat();
                 break;
 
@@ -248,7 +254,7 @@ class AppController {
         this.el.formatModelSelect.value = localStorage.getItem('pippi_selected_format_model') || 'gemini-2.5-flash';
         this.el.customDict.value = localStorage.getItem('pippi_custom_dict') || '';
         this.currentValue = this.el.output.innerText.trim();
-        this.updateUI();
+        this.updateUndoRedoUI();
     }
 }
 

@@ -1,4 +1,4 @@
-// Pippi Service Worker v1.4.0
+// Pippi Service Worker v1.4.1
 import { VERSION, CACHE_NAME, ASSETS } from './src/config.js';
 
 self.addEventListener('install', (event) => {
@@ -13,7 +13,6 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('Cleaning old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })

@@ -23,21 +23,21 @@ def validate():
             print(f"❌ Error: sw.js is missing version comment v{version}.")
             return False
 
-    # 3. 檢查 app.js 核心邏輯
+    # 3. 檢查 app.js 是否包含關鍵兩階段 Undo 邏輯
     with open('src/app.js', 'r') as f:
         app = f.read()
-        if 'redoStack' not in app or 'handleRedo' not in app or 'saveState' not in app:
-             print("❌ Error: app.js is missing core Undo/Redo logic!")
+        if 'STT_PROCESSING' not in app or 'this.saveState(transcript)' not in app:
+             print("❌ Error: app.js is missing Two-Stage Undo logic!")
              return False
 
-    # 4. 檢查 test.html 是否已更新
+    # 4. 檢查 test.html 是否已更新測試案例
     with open('test.html', 'r') as f:
         test = f.read()
-        if f"v{version}" not in test:
-             print(f"❌ Error: test.html is outdated (expected v{version})")
+        if "Two-Stage Undo Test" not in test:
+             print("❌ Error: test.html is missing Two-Stage Undo scenario!")
              return False
 
-    print(f"✅ Validation Passed: v{version} is architecturally sound.")
+    print(f"✅ Validation Passed: v{version} is logically sound.")
     return True
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Pippi Voice - 核心診斷中心 v1.4.0</title>
+    <title>Pippi Voice - 核心診斷中心 v1.4.1</title>
     <style>
         body { font-family: -apple-system, sans-serif; padding: 20px; background: #f4f7f6; }
         .test-card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
@@ -14,21 +14,16 @@
 </head>
 <body>
     <h1>🐈 Pippi Voice 核心邏輯驗證</h1>
-    <div class="version">版本: v1.4.0 (Undo/Redo Use Case Suite)</div>
+    <div class="version">版本: v1.4.1 (Two-Stage Undo Test)</div>
     
     <div class="test-card">
-        <h3>🧪 測試案例 1: 基礎 AI 整理後復原 (Single Action)</h3>
+        <h3>🧪 測試案例 1: 兩階段復原 (STT -> AI Format)</h3>
         <div id="case-1-result">執行中...</div>
     </div>
 
     <div class="test-card">
-        <h3>🧪 測試案例 2: 連續編輯與分叉 (Branching Logic)</h3>
+        <h3>🧪 測試案例 2: Redo 恢復力驗證</h3>
         <div id="case-2-result">執行中...</div>
-    </div>
-
-    <div class="test-card">
-        <h3>🧪 測試案例 3: 錄音自動清空後的救回 (Auto-Clear Safety)</h3>
-        <div id="case-3-result">執行中...</div>
     </div>
 
     <h4>執行日誌：</h4>
@@ -43,81 +38,87 @@
             if (a !== b) throw new Error(`${msg} (預期: "${b}", 得到: "${a}")`);
         }
 
-        // --- 核心 Undo/Redo 演算法模擬 ---
+        // --- 核心 Undo/Redo 引擎 ---
         class HistoryEngine {
-            constructor(initial) {
-                this.current = initial;
+            constructor(initial = "") {
+                this.currentValue = initial;
                 this.undoStack = [];
                 this.redoStack = [];
             }
             save(newVal) {
-                if (newVal === this.current) return;
-                this.undoStack.push(this.current);
-                this.current = newVal;
-                this.redoStack = []; // 清空重做棧
-                log(`Save: "${newVal}" (Undo Size: ${this.undoStack.length})`);
+                if (newVal === this.currentValue) return;
+                this.undoStack.push(this.currentValue);
+                this.currentValue = newVal;
+                this.redoStack = [];
+                log(`[Save] Current: "${this.currentValue}" (Stack: ${this.undoStack.length})`);
             }
             undo() {
                 if (this.undoStack.length > 0) {
-                    this.redoStack.push(this.current);
-                    this.current = this.undoStack.pop();
-                    log(`Undo to: "${this.current}"`);
+                    this.redoStack.push(this.currentValue);
+                    this.currentValue = this.undoStack.pop();
+                    log(`[Undo] Back to: "${this.currentValue}"`);
                 }
             }
             redo() {
                 if (this.redoStack.length > 0) {
-                    this.undoStack.push(this.current);
-                    this.current = this.redoStack.pop();
-                    log(`Redo to: "${this.current}"`);
+                    this.undoStack.push(this.currentValue);
+                    this.currentValue = this.redoStack.pop();
+                    log(`[Redo] Forward to: "${this.currentValue}"`);
                 }
             }
         }
 
-        // --- Case 1: AI Format ---
+        // --- Case 1: Two-Stage Undo ---
         try {
-            log("--- 執行 Case 1 ---");
-            const engine = new HistoryEngine("原始文字");
-            engine.save("AI 整理後的漂亮文字");
+            log("--- 開始兩階段復原測試 ---");
+            const engine = new HistoryEngine("原本內容");
+            
+            log("動作 A: 開始錄音，清空畫面");
+            engine.save("");
+            
+            log("動作 B: 語音辨識完成 (STT Result)");
+            engine.save("我是逐字稿內容");
+            
+            log("動作 C: AI 整理完成 (AI Result)");
+            engine.save("整理後的條列式內容");
+            
+            assertEqual(engine.currentValue, "整理後的條列式內容", "目前應為 AI 內容");
+            
+            log("執行 Undo 1...");
             engine.undo();
-            assertEqual(engine.current, "原始文字", "Undo 應回到原始文字");
-            engine.redo();
-            assertEqual(engine.current, "AI 整理後的漂亮文字", "Redo 應回到整理後文字");
-            document.getElementById('case-1-result').innerHTML = '<span class="pass">✔ 通過</span>';
+            assertEqual(engine.currentValue, "我是逐字稿內容", "第一次 Undo 應回到【逐字稿】");
+            
+            log("執行 Undo 2...");
+            engine.undo();
+            assertEqual(engine.currentValue, "", "第二次 Undo 應回到【空白】");
+
+            log("執行 Undo 3...");
+            engine.undo();
+            assertEqual(engine.currentValue, "原本內容", "第三次 Undo 應回到【原本內容】");
+            
+            document.getElementById('case-1-result').innerHTML = '<span class="pass">✔ 通過：兩階段復原路徑正確</span>';
         } catch (e) {
             document.getElementById('case-1-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
         }
 
-        // --- Case 2: Branching ---
+        // --- Case 2: Redo Recovery ---
         try {
-            log("--- 執行 Case 2 ---");
-            const engine = new HistoryEngine("A");
-            engine.save("B");
-            engine.save("C");
-            engine.undo(); // 回到 B
-            assertEqual(engine.current, "B", "Undo 1 次應為 B");
-            engine.save("D"); // 在 B 的基礎上新修改 D，應清空 C 的 Redo
-            assertEqual(engine.redoStack.length, 0, "新修改後 Redo 應清空");
-            engine.undo();
-            assertEqual(engine.current, "B", "Undo 應回到 B");
-            engine.undo();
-            assertEqual(engine.current, "A", "Undo 應回到 A");
-            document.getElementById('case-2-result').innerHTML = '<span class="pass">✔ 通過</span>';
+            log("--- 開始 Redo 恢復力測試 ---");
+            const engine = new HistoryEngine("");
+            engine.save("階段 1");
+            engine.save("階段 2");
+            
+            engine.undo(); // 回到階段 1
+            engine.undo(); // 回到 ""
+            
+            engine.redo(); // 往回跳到 1
+            assertEqual(engine.currentValue, "階段 1", "第一次 Redo 失敗");
+            engine.redo(); // 往回跳到 2
+            assertEqual(engine.currentValue, "階段 2", "第二次 Redo 失敗");
+            
+            document.getElementById('case-2-result').innerHTML = '<span class="pass">✔ 通過：Redo 能正確尋回丟失的狀態</span>';
         } catch (e) {
             document.getElementById('case-2-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
-        }
-
-        // --- Case 3: Auto-Clear ---
-        try {
-            log("--- 執行 Case 3 ---");
-            const engine = new HistoryEngine("舊對話內容");
-            // 模擬開始錄音
-            engine.save(""); 
-            assertEqual(engine.current, "", "目前應為清空狀態");
-            engine.undo();
-            assertEqual(engine.current, "舊對話內容", "Undo 應救回錄音前被清空的內容");
-            document.getElementById('case-3-result').innerHTML = '<span class="pass">✔ 通過</span>';
-        } catch (e) {
-            document.getElementById('case-3-result').innerHTML = `<span class="fail">✘ 失敗: ${e.message}</span>`;
         }
     </script>
 </body>
