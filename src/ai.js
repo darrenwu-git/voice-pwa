@@ -1,4 +1,4 @@
-// Pippi Voice - AI Manager v1.3.6 (Abortable)
+// Pippi Voice - AI Manager v1.5.1 (Added Cheap Model Options)
 import { Events } from './events.js';
 import { PippiError, ErrorCodes } from './errors.js';
 

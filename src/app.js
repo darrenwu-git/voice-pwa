@@ -1,4 +1,4 @@
-// Pippi Voice - Main Controller v1.5.0 (Workflow Refinement)
+// Pippi Voice - Main Controller v1.5.2 (Force Update Logic)
 import { VERSION, VERSION_TAG } from './config.js';
 import { EventBus, Events } from './events.js';
 import { SpeechManager } from './speech.js';
@@ -20,8 +20,38 @@ class AppController {
         this.setupDOM();
         this.bindEvents();
         this.loadSettings();
+        this.checkForceUpdate();
         
         console.log(`[Core] Pippi Voice v${VERSION} Initialized.`);
+    }
+
+    async checkForceUpdate() {
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('forceUpdate')) {
+            console.log('[Core] Force update detected via URL.');
+            await this.handleHardReset(false);
+        }
+    }
+
+    async handleHardReset(ask = true) {
+        if (ask && !confirm('確定要清除所有緩存並重置嗎？')) return;
+        
+        this.el.statusText.innerText = '正在強力重置中...';
+        
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            for(let reg of regs) await reg.unregister();
+        }
+        
+        if (window.caches) {
+            const keys = await caches.keys();
+            for(let key of keys) await caches.delete(key);
+        }
+        
+        // 清除除了 API Key 以外的可能導致衝突的設定 (選填)
+        // localStorage.clear(); 
+        
+        window.location.href = window.location.pathname; // 跳轉回不帶參數的頁面
     }
 
     setupDOM() {
@@ -136,16 +166,7 @@ class AppController {
         }
 
         if (this.el.hardResetBtn) {
-            this.el.hardResetBtn.onclick = () => {
-                if (confirm('確定要清除所有緩存並重置嗎？')) {
-                    if ('serviceWorker' in navigator) {
-                        navigator.serviceWorker.getRegistrations().then(regs => {
-                            for(let reg of regs) reg.unregister();
-                            window.location.reload(true);
-                        });
-                    } else window.location.reload(true);
-                }
-            };
+            this.el.hardResetBtn.onclick = () => this.handleHardReset(true);
         }
 
         this.el.output.onblur = () => {
